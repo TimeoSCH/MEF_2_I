@@ -1,6 +1,4 @@
-#ifndef STRUCTURES_H
-#define STRUCTURES_H
-
+#include "structures.h"
 struct Station;
 
 typedef struct Chainon {
