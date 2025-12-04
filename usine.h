@@ -4,10 +4,10 @@
 #include <stdint.h>
 
 typedef struct {
-    uint32_t id;
-    uint32_t captage;
-    uint32_t acheminement;
-    uint32_t traitement;
+     int id;
+     int captage;
+     int acheminement;
+     int traitement;
 } Usine;
 
 Usine *create_usine(uint32_t id);
