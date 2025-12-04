@@ -3,7 +3,6 @@
 
 #include "structures.h"
 
-// Structure du noeud AVL [cite: 200]
 typedef struct Arbre {
     Station* elmt;          
     struct Arbre* fg;       
@@ -11,7 +10,6 @@ typedef struct Arbre {
     int equilibre;          
 } Arbre;
 
-// Prototypes
 Arbre* creerArbre(Station* s);
 Arbre* insertionAVL(Arbre* a, Station* s, int* h);
 Station* rechercherStation(Arbre* a, char* id);
