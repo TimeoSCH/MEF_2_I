@@ -1,17 +1,20 @@
 #ifndef AVL_H
 #define AVL_H
 
-#include <stdint.h>
+#include "structures.h"
 
-typedef struct AVL {
-    uint32_t key;            
-    void *data;              
-    struct AVL *left;
-    struct AVL *right;
-    int8_t height;
-} AVL;
+// Structure du noeud AVL [cite: 200]
+typedef struct Arbre {
+    Station* elmt;          
+    struct Arbre* fg;       
+    struct Arbre* fd;       
+    int equilibre;          
+} Arbre;
 
-AVL *avl_insert(AVL *root, uint32_t key, void *data, int *err);
-AVL *avl_search(AVL *root, uint32_t key);
-void avl_free(AVL *root);
+// Prototypes
+Arbre* creerArbre(Station* s);
+Arbre* insertionAVL(Arbre* a, Station* s, int* h);
+Station* rechercherStation(Arbre* a, char* id);
+void libererAVL(Arbre* a);
+
 #endif
