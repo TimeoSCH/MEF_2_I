@@ -1,4 +1,4 @@
-ifndef AVL_H
+#ifndef AVL_H
 #define AVL_H
 
 #include <stdint.h>
