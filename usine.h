@@ -10,7 +10,7 @@ typedef struct {
      int traitement;
 } Usine;
 
-Usine *create_usine(uint32_t id);
-void update_usine(Usine *u, uint32_t cap, uint32_t ach, uint32_t trt);
+Usine *create_usine(int id);
+void update_usine(Usine *u, int captage, int acheminement, int traitement);
 
 #endif
