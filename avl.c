@@ -46,45 +46,34 @@ int equilibre(pStation a) {
 
 // Rotations Simples 
 
-pStation rotationDroite(pStation y) {
-    pStation x = y->fg;
-    pStation T2 = x->fd;
-
-    // Rotation
-    x->fd = y;
-    y->fg = T2;
-
-    // Mise à jour des hauteurs
-    y->h = max(hauteur(y->fg), hauteur(y->fd)) + 1;
-    x->h = max(hauteur(x->fg), hauteur(x->fd)) + 1;
-
-    return x; // Nouvelle racine
+pStation rotationDroite(pStation a) {
+    pStation pivot = a->fg;
+    a->fg = pivot->fd;
+    pivot->fd = a;
+    a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
+    pivot->h = 1 + max(hauteur(pivot->fg), hauteur(pivot->fd));
+    return pivot;
 }
 
-pStation rotationGauche(pStation x) {
-    pStation y = x->fd;
-    pStation T2 = y->fg;
-
-    // Rotation
-    y->fg = x;
-    x->fd = T2;
-
-    // Mise à jour des hauteurs
-    x->h = max(hauteur(x->fg), hauteur(x->fd)) + 1;
-    y->h = max(hauteur(y->fg), hauteur(y->fd)) + 1;
-
-    return y;
+// Par symétrie, voici la rotation Gauche adaptée
+pStation rotationGauche(pStation a) {
+    pStation pivot = a->fd;
+    a->fd = pivot->fg;
+    pivot->fg = a;
+    a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
+    pivot->h = 1 + max(hauteur(pivot->fg), hauteur(pivot->fd));
+    return pivot;
 }
 
 //  Rotations Doubles 
-pStation doubleRotationDroite(pStation a){
+pStation doubleRotationGD(pStation a){
    a->fg=rotationGauche(a->fg);
    a=rotationDroite(a);
    return a;
 }
 
 
-pStation doubleRotationGauche(pStation a){
+pStation doubleRotationDG(pStation a){
    a->fd=rotationDroite(a->fd);
    a=rotationGauche(a);
    return a;
@@ -111,15 +100,42 @@ pStation creerStation(int id, char* code, long cap) {
     return nouv;
 }
 
+pStation equilibrerAVL(pStation a) {
+    // 1. Mise à jour de la hauteur
+    a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
+
+    // 2. Calcul du facteur d'équilibre
+    int eq = equilibre(a); 
+
+    // 3. Tests et Rotations
+    if (eq >= 2) { 
+        // L'arbre penche à GAUCHE (eq positif car hauteur(fg) > hauteur(fd))
+        if (equilibre(a->fg) >= 0) {
+            return rotationDroite(a);
+        } else {
+            return doubleRotationGD(a);
+        }
+    } 
+    else if (eq <= -2) {
+        // L'arbre penche à DROITE (eq négatif)
+        if (equilibre(a->fd) <= 0) {
+            return rotationGauche(a);
+        } else {
+            return doubleRotationDG(a);
+        }
+    }
+    
+    return a;
+}
+
+
 pStation inserer(pStation a, int id, char* code, long cap, long flux) {
-    // 1. Insertion ABR classique
     if (a == NULL) {
         pStation nouv = creerStation(id, code, cap);
         nouv->conso = flux;
         return nouv;
     }
 
-    // Remplacement de strcmp par notre fonction
     int cmp = comparerTexte(code, a->id_str);
 
     if (cmp < 0) {
@@ -129,46 +145,35 @@ pStation inserer(pStation a, int id, char* code, long cap, long flux) {
         a->fd = inserer(a->fd, id, code, cap, flux);
     } 
     else {
-        // Le noeud existe déjà : on met à jour les données
+        // Mise à jour (INCHANGÉE)
         if (cap > 0) a->capacite = cap;
         a->conso += flux;
-        return a;
+        return a; 
     }
-
-    // 2. Mise à jour hauteur
-    a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
-
-    // 3. Équilibrage (AVL)
-    int eq = equilibre(a);
-
-    // Cas Gauche-Gauche
-    if (eq > 1 && comparerTexte(code, a->fg->id_str) < 0) {
-        return rotationDroite(a);
-    }
-    // Cas Droite-Droite
-    if (eq < -1 && comparerTexte(code, a->fd->id_str) > 0) {
-        return rotationGauche(a);
-    }
-    // Cas Gauche-Droite
-    if (eq > 1 && comparerTexte(code, a->fg->id_str) > 0) {
-        return doubleRotationGD(a);
-    }
-    // Cas Droite-Gauche
-    if (eq < -1 && comparerTexte(code, a->fd->id_str) < 0) {
-        return doubleRotationDG(a);
-    }
-
-    return a;
+    return equilibrerAVL(a);
 }
 
-// Parcours infixe inverse (Droit -> Racine -> Gauche) pour tri décroissant
+void traiter(pStation a, FILE* fs) {
+    if (a != NULL && fs != NULL) {
+        fprintf(fs, "%s;%ld;%ld\n", a->id_str, a->capacite, a->conso);
+    }
+}
+
+// Parcours infixe 
 void infixe(pStation a, FILE* fs) {
     if (a != NULL) {
-        infixe(a->fd, fs);
-        if (fs != NULL) {
-            fprintf(fs, "%s;%ld;%ld\n", a->id_str, a->capacite, a->conso);
-        }
-        infixe(a->fg, fs);
+        infixe(a->fd, fs);       
+        traiter(a, fs);         
+        infixe(a->fg, fs);       
+    }
+}
+
+// Fonction de libération de la mémoire
+void liberer(pStation a) {
+    if (a != NULL) {
+        liberer(a->fg);
+        liberer(a->fd);
+        free(a);
     }
 }
 
