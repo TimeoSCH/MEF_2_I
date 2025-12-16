@@ -1,6 +1,6 @@
 #include "avl.h"
 
-// --- Fonctions utilitaires internes (remplacent string.h) ---
+// Fonctions utilitaires internes (remplacent string.h) 
 
 // Remplace strcmp : renvoie un nb < 0, 0 ou > 0
 int comparerTexte(const char* s1, const char* s2) {
@@ -24,7 +24,7 @@ void copierTexte(char* dest, const char* src) {
     dest[i] = '\0';
 }
 
-// -----------------------------------------------------------
+
 
 // Utile pour les hauteurs
 int max(int a, int b) {
@@ -76,19 +76,22 @@ pStation rotationGauche(pStation x) {
     return y;
 }
 
-// --- Rotations Doubles ---
-
-pStation doubleRotationGD(pStation a) {
-    a->fg = rotationGauche(a->fg);
-    return rotationDroite(a);
+//  Rotations Doubles 
+pStation doubleRotationDroite(pStation a){
+   a->fg=rotationGauche(a->fg);
+   a=rotationDroite(a);
+   return a;
 }
 
-pStation doubleRotationDG(pStation a) {
-    a->fd = rotationDroite(a->fd);
-    return rotationGauche(a);
+
+pStation doubleRotationGauche(pStation a){
+   a->fd=rotationDroite(a->fd);
+   a=rotationGauche(a);
+   return a;
 }
 
-// --- Gestion de l'arbre ---
+
+//  Gestion de l'arbre 
 
 pStation creerStation(int id, char* code, long cap) {
     pStation nouv = (pStation)malloc(sizeof(Station));
