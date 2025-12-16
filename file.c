@@ -5,7 +5,7 @@
 
 #define MAX_LIGNE 2048
 
-// --- Fonctions utilitaires manuelles (remplacent string.h et stdlib.h) ---
+//Fonctions utilitaires manuelles (remplacent string.h et stdlib.h) 
 
 // Remplace strcmp : Renvoie 1 si les chaines sont identiques, 0 sinon
 int estEgal(const char* s1, const char* s2) {
@@ -47,7 +47,7 @@ long chaineVersLong(const char* s) {
     return res;
 }
 
-// --- Fonction principale ---
+// Fonction principale
 
 void charger(char* chemin, pStation* racine, char* mode) {
     FILE* fp = fopen(chemin, "r");
@@ -74,7 +74,7 @@ void charger(char* chemin, pStation* racine, char* mode) {
         // Initialisation des colonnes à vide par sécurité
         for(int k=0; k<5; k++) cols[k][0] = '\0';
 
-        // --- PARSING MANUEL (Remplace strtok) ---
+        // PARSING MANUEL (Remplace strtok)
         // On parcourt la ligne caractère par caractère
         while (ligne[idxLigne] != '\0' && idxCol < 5) {
             char c = ligne[idxLigne];
@@ -100,7 +100,6 @@ void charger(char* chemin, pStation* racine, char* mode) {
             }
             idxLigne++;
         }
-        // ----------------------------------------
 
         // Conversion des valeurs numériques avec notre fonction
         long val3 = chaineVersLong(cols[2]);
