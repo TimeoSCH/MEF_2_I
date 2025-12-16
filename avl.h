@@ -10,13 +10,13 @@ typedef struct Station {
     int id;                 // Identifiant numérique
     char id_str[50];        // Identifiant texte
     long capacite;          // Capacité (pour le max)
-    long conso;             // Consommation (pour src/real)
-    int h;                  // Hauteur du noeud
-    struct Station *fg;     // Fils gauche
-    struct Station *fd;     // Fils droit
+    long conso;             // Consommation 
+    int h;                  
+    struct Station *fg;     
+    struct Station *fd;     
 } Station;
 
-typedef Station* pStation; // Pointeur vers Station (style L2)
+typedef Station* pStation; // Pointeur vers Station 
 
 // Fonctions de base
 int max(int a, int b);
