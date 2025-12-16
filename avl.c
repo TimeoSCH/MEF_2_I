@@ -44,7 +44,7 @@ int equilibre(pStation a) {
     return hauteur(a->fg) - hauteur(a->fd);
 }
 
-// --- Rotations Simples ---
+// Rotations Simples 
 
 pStation rotationDroite(pStation y) {
     pStation x = y->fg;
