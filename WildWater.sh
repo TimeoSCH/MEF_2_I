@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 show_help() {
     echo "Usage: $0 <fichier_dat> <station_type> <consommateur_type> [id_station]"
     echo ""
