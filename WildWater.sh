@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 show_help() {
     echo "Usage: $0 <fichier_dat> <station_type> <consommateur_type> [id_station]"
     echo ""
@@ -12,7 +11,7 @@ show_help() {
     echo ""
     echo "Exemples:"
     echo "  $0 data.csv histo max"
-    echo "  $0 data.csv leaks 12345"
+    echo "  $0 data.csv leaks 'Facility complex #RH400057F'"
     echo "  $0 -h               : Affiche cette aide"
 }
 
