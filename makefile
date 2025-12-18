@@ -1,22 +1,18 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99
 EXEC = c-wire
+SRC = main.c avl.c file.c
+OBJ = $(SRC:.c=.o)
 
 all: $(EXEC)
 
-$(EXEC): main.o avl.o file.o
-    $(CC) $(CFLAGS) -o $(EXEC) main.o avl.o file.o
+$(EXEC): $(OBJ)
+	$(CC) $(CFLAGS) -o $@ $^
 
-main.o: main.c avl.h file.h
-    $(CC) $(CFLAGS) -c main.c
-
-avl.o: avl.c avl.h
-    $(CC) $(CFLAGS) -c avl.c
-
-file.o: file.c file.h avl.h
-    $(CC) $(CFLAGS) -c file.c
+%.o: %.c avl.h file.h
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-    rm -f *.o $(EXEC) *.csv *.png *.tmp
+	rm -f $(OBJ) $(EXEC) *.o
 
 .PHONY: all clean
