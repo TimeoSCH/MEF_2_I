@@ -177,11 +177,5 @@ void liberer(pStation a) {
     }
 }
 
-void liberer(pStation a) {
-    if (a != NULL) {
-        liberer(a->fg);
-        liberer(a->fd);
-        free(a);
-    }
-}
+
 
