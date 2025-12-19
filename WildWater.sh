@@ -1,72 +1,66 @@
 #!/bin/bash
 
-show_help() {
-    echo "Usage: $0 <fichier_dat> <station_type> <consommateur_type> [id_station]"
-    echo ""
-    echo "Arguments:"
-    echo "  <fichier_dat>       : Chemin vers le fichier de données (.csv)"
-    echo "  <command>           : 'histo' ou 'leaks'"
-    echo "  <mode>              : Pour histo : 'max', 'src' ou 'real'"
-    echo "                        Pour leaks : l'identifiant de la station"
-    echo ""
-    echo "Exemples:"
-    echo "  $0 data.csv histo max"
-    echo "  $0 data.csv leaks 'Facility complex #RH400057F'"
-    echo "  $0 -h               : Affiche cette aide"
-}
-
-if [ "$1" == "-h" ]; then
-    show_help
-    exit 0
-fi
-
-if [ "$#" -lt 3 ]; then
-    echo "Erreur : Arguments insuffisants."
-    show_help
-    exit 1
-fi
-
-FICHIER_CSV="$1"
-COMMANDE="$2"
-OPTION="$3"
-
-if [ ! -f "$FICHIER_CSV" ]; then
-    echo "Erreur : Le fichier '$FICHIER_CSV' est introuvable."
-    exit 1
-fi
-
+DATA_FILE="data.csv"
 EXECUTABLE="./c-wire"
 MAKEFILE="Makefile"
+
+show_help() {
+    echo "Usage: $0 <commande> <option> [fichier_csv]"
+    echo ""
+    echo "Commandes:"
+    echo "  histo max|src|real      : Génère l'histogramme des stations."
+    echo "  leaks <id_station>      : Calcule les fuites pour une station donnée."
+    echo ""
+    echo "Options:"
+    echo "  [fichier_csv]           : Chemin vers le fichier de données (par défaut: $DATA_FILE)"
+    echo ""
+    echo "Exemples:"
+    echo "  $0 histo max"
+    echo "  $0 leaks 'Facility complex #RH400057F'"
+}
+
+if [ "$1" == "-h" ] || [ "$#" -lt 2 ]; then
+    show_help
+    exit 1
+fi
+
+COMMANDE="$1"
+OPTION="$2"
+
+if [ -n "$3" ]; then
+    DATA_FILE="$3"
+fi
+
+if [ ! -f "$DATA_FILE" ]; then
+    echo "Erreur : Le fichier de données '$DATA_FILE' est introuvable."
+    exit 1
+fi
 
 if [ ! -f "$MAKEFILE" ]; then
     echo "Erreur : Makefile introuvable."
     exit 2
 fi
 
-make clean > /dev/null 2>&1
-make
-if [ $? -ne 0 ]; then
-    echo "Erreur : La compilation a échoué."
-    exit 2
-fi
-
 if [ ! -x "$EXECUTABLE" ]; then
-    echo "Erreur : L'exécutable n'a pas été créé."
-    exit 2
+    make
+    if [ $? -ne 0 ]; then
+        echo "Erreur : La compilation a échoué."
+        exit 2
+    fi
 fi
 
-mkdir -p tmp
 mkdir -p graphs
+mkdir -p tmp
 
-START=$(date +%s%3N)
+START=$(date +%s)
 
 if [ "$COMMANDE" == "histo" ]; then
     if [[ ! "$OPTION" =~ ^(max|src|real)$ ]]; then
-        echo "Erreur : Pour 'histo', l'option doit être 'max', 'src' ou 'real'."
+        echo "Erreur : L'option pour 'histo' doit être 'max', 'src' ou 'real'."
         exit 1
     fi
-    
-    "$EXECUTABLE" "$FICHIER_CSV" "$COMMANDE" "$OPTION"
+
+    "$EXECUTABLE" "$DATA_FILE" "$COMMANDE" "$OPTION"
     CODE_RETOUR=$?
 
     if [ $CODE_RETOUR -ne 0 ]; then
@@ -74,74 +68,88 @@ if [ "$COMMANDE" == "histo" ]; then
         exit 3
     fi
 
-    OUTPUT_FILE="${COMMANDE}_${OPTION}.dat"
-    
+    OUTPUT_DAT="vol_${OPTION}.dat"
+    OUTPUT_IMG="graphs/vol_${OPTION}.png"
+
     if [ "$OPTION" == "max" ]; then
-        echo "identifier;max volume (k.m3.year-1);source volume;real volume" > "$OUTPUT_FILE"
+        HEADER="identifier;max volume (k.m3.year-1);source volume;real volume"
     else
-        echo "identifier;volume (k.m3.year-1)" > "$OUTPUT_FILE"
+        HEADER="identifier;volume (k.m3.year-1)"
     fi
-    
-    sort -t';' -k1,1r stats.csv >> "$OUTPUT_FILE"
+    echo "$HEADER" > "$OUTPUT_DAT"
 
-    tail -n +2 "$OUTPUT_FILE" > tmp/data_plot.dat
+    if [ -f "stats.csv" ]; then
+        sort -t';' -k1,1r stats.csv >> "$OUTPUT_DAT"
+    else
+        echo "Erreur : Fichier de sortie du programme C introuvable."
+        exit 3
+    fi
+
+    tail -n +2 "$OUTPUT_DAT" | sort -t';' -k2,2n > tmp/data_sorted.dat
+
+    NB_LINES=$(wc -l < tmp/data_sorted.dat)
     
-    sort -t';' -k2,2n tmp/data_plot.dat > tmp/data_sorted.dat
-    
-    head -n 50 tmp/data_sorted.dat > tmp/min_50.dat
-    tail -n 10 tmp/data_sorted.dat > tmp/max_10.dat
+    if [ "$NB_LINES" -le 10 ]; then
+        cat tmp/data_sorted.dat > tmp/data_plot.dat
+    else
+        head -n 5 tmp/data_sorted.dat > tmp/data_plot.dat
+        tail -n 5 tmp/data_sorted.dat >> tmp/data_plot.dat
+    fi
 
     gnuplot -persist <<-EOF
-        set terminal png size 1000,600
-        set output 'graphs/${OPTION}_min_50.png'
-        set title '50 stations avec le plus petit volume ($OPTION)'
+        set terminal png size 1200,800
+        set output '$OUTPUT_IMG'
+        set title 'Histogramme : 5 plus faibles et 5 plus forts volumes ($OPTION)'
         set datafile separator ";"
         set style data histograms
         set style fill solid
         set boxwidth 0.5
-        set xtics rotate by -45 scale 0 font ",8"
-        set ylabel 'Volume (m3)'
-        plot 'tmp/min_50.dat' using 2:xtic(1) notitle linecolor rgb "blue"
-EOF
-
-    gnuplot -persist <<-EOF
-        set terminal png size 1000,600
-        set output 'graphs/${OPTION}_max_10.png'
-        set title '10 stations avec le plus grand volume ($OPTION)'
-        set datafile separator ";"
-        set style data histograms
-        set style fill solid
-        set boxwidth 0.5
-        set xtics rotate by -45 scale 0 font ",8"
-        set ylabel 'Volume (m3)'
-        plot 'tmp/max_10.dat' using 2:xtic(1) notitle linecolor rgb "red"
+        set xtics rotate by -45 scale 0 font ",9"
+        set ylabel 'Volume (k.m3)'
+        set grid ytics
+        set xlabel 'Usines'
+        plot 'tmp/data_plot.dat' using 2:xtic(1) title '$OPTION volume' linecolor rgb "blue"
 EOF
 
 elif [ "$COMMANDE" == "leaks" ]; then
-    ID_LEAK="$3"
+    ID_LEAK="$OPTION"
     if [ -z "$ID_LEAK" ]; then
-        echo "Erreur : L'identifiant est obligatoire pour 'leaks'."
+        echo "Erreur : L'identifiant de la station est manquant."
         exit 1
     fi
-    
-    "$EXECUTABLE" "$FICHIER_CSV" "$COMMANDE" "$ID_LEAK"
-    
+
+    "$EXECUTABLE" "$DATA_FILE" "$COMMANDE" "$ID_LEAK"
+    CODE_RETOUR=$?
+
+    if [ $CODE_RETOUR -ne 0 ]; then
+         echo "Attention : Le programme C a signalé une erreur ou un avertissement."
+    fi
+
+    OUTPUT_LEAKS="leaks_history.dat"
+
     if [ -f "stats.csv" ]; then
-        cat stats.csv >> "leaks_history.dat"
+        if [ ! -f "$OUTPUT_LEAKS" ]; then
+             echo "identifier;Leak volume (M.m3.year-1)" > "$OUTPUT_LEAKS"
+        fi
+        cat stats.csv >> "$OUTPUT_LEAKS"
         cat stats.csv
     else
-        echo "Identifiant introuvable ou erreur traitement."
+        echo "Erreur : Pas de données générées par le programme C."
     fi
 
 else
-    echo "Erreur : Commande '$COMMANDE' inconnue. Utilisez 'histo' ou 'leaks'."
+    echo "Erreur : Commande '$COMMANDE' inconnue."
+    show_help
     exit 1
 fi
 
-END=$(date +%s%3N)
-DURATION=$((END - START))
-echo "Durée totale : ${DURATION} ms"
-
 rm -f stats.csv
+rm -rf tmp
+
+END=$(date +%s)
+DURATION=$((END - START))
+
+echo "Durée totale : ${DURATION} secondes"
 
 exit 0
+
