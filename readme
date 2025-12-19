@@ -1,10 +1,10 @@
-# Projet-info-Eau-Cy-Tech
+# MEF_2_I
 
-Projet C et Shell du groupe **MEF2-B**.
-**Auteurs :** Joseph Kouto-messan, Milo Thomas et Adam Arezki.
+Projet C et Shell du groupe MEF2-i.
+Auteurs :Timeo schlumberger Shady Leysen Yassine Moutattine.
 
  # Description
-C-WildWater est une application de traitement et d'analyse de données massives (Big Data) pour les réseaux de distribution d'eau.
+WildWater est une application de traitement et d'analyse de données massives (Big Data) pour les réseaux de distribution d'eau.
 
 Le projet combine la puissance du Shell Script (pour le filtrage et le nettoyage des données) et la performance du Langage C (pour le stockage et les calculs complexes).
 
@@ -25,7 +25,7 @@ git clone https://github.com/jkm228/Projet-info-Eau-Cy-Tech.git
 cd Projet-info-Eau-Cy-Tech
 
 # 3. Vérifier que les fichiers sont bien là
-ls -l
+ls 
 
 # 4. Rendre le script exécutable
 chmod +x c-wildwater.sh
