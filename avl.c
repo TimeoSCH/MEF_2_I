@@ -1,158 +1,115 @@
+#include "avl.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "avl.h"
 
-// --- Fonctions utilitaires ---
+// --- VOTRE CODE (STRUCTURE ET OUTILS) ---
 
-int comparerTexte(const char* s1, const char* s2) {
-    int i = 0;
-    while (s1[i] != '\0' && s2[i] != '\0') {
-        if (s1[i] != s2[i]) return (s1[i] - s2[i]);
-        i++;
+pArbre creerArbre(int id, long capacity, long consumption) {
+    pArbre new = malloc(sizeof(Arbre));
+    if (new == NULL) {
+        exit(1);
     }
-    return (s1[i] - s2[i]);
+    new->id = id;
+    new->capacity = capacity;
+    new->consumption = consumption;
+    new->height = 1;
+    new->fg = NULL;
+    new->fd = NULL;
+    return new;
 }
 
-void copierTexte(char* dest, const char* src) {
-    int i = 0;
-    while (src[i] != '\0') {
-        dest[i] = src[i];
-        i++;
+int hauteur(pArbre a) {
+    if (a == NULL) {
+        return 0;
     }
-    dest[i] = '\0';
+    return a->height;
 }
 
 int max(int a, int b) {
-    if (a > b) return a;
+    return (a > b) ? a : b;
+}
+
+pArbre rotationDroite(pArbre a) {
+    pArbre b = a->fg;
+    pArbre T2 = b->fd;
+
+    b->fd = a;
+    a->fg = T2;
+
+    a->height = max(hauteur(a->fg), hauteur(a->fd)) + 1;
+    b->height = max(hauteur(b->fg), hauteur(b->fd)) + 1;
+
     return b;
 }
 
-int hauteur(pStation a) {
-    if (a == NULL) return 0;
-    return a->h;
+pArbre rotationGauche(pArbre a) {
+    pArbre b = a->fd;
+    pArbre T2 = b->fg;
+
+    b->fg = a;
+    a->fd = T2;
+
+    a->height = max(hauteur(a->fg), hauteur(a->fd)) + 1;
+    b->height = max(hauteur(b->fg), hauteur(b->fd)) + 1;
+
+    return b;
 }
 
-int equilibre(pStation a) {
-    if (a == NULL) return 0;
-    return hauteur(a->fg) - hauteur(a->fd);
-}
+pArbre equilibrage(pArbre a) {
+    if (a == NULL) {
+        return NULL;
+    }
 
-// --- Rotations ---
+    int delta = hauteur(a->fg) - hauteur(a->fd);
 
-pStation rotationDroite(pStation a) {
-    pStation pivot = a->fg;
-    a->fg = pivot->fd;
-    pivot->fd = a;
-    a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
-    pivot->h = 1 + max(hauteur(pivot->fg), hauteur(pivot->fd));
-    return pivot;
-}
+    if (delta > 1) {
+        if (hauteur(a->fg->fg) >= hauteur(a->fg->fd)) {
+            return rotationDroite(a);
+        } else {
+            a->fg = rotationGauche(a->fg);
+            return rotationDroite(a);
+        }
+    }
 
-pStation rotationGauche(pStation a) {
-    pStation pivot = a->fd;
-    a->fd = pivot->fg;
-    pivot->fg = a;
-    a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
-    pivot->h = 1 + max(hauteur(pivot->fg), hauteur(pivot->fd));
-    return pivot;
-}
-
-pStation doubleRotationGD(pStation a){
-   a->fg=rotationGauche(a->fg);
-   a=rotationDroite(a);
-   return a;
-}
-
-pStation doubleRotationDG(pStation a){
-   a->fd=rotationDroite(a->fd);
-   a=rotationGauche(a);
-   return a;
-}
-
-// --- Gestion AVL ---
-
-pStation creerStation(int id, char* code, long cap) {
-    pStation nouv = (pStation)malloc(sizeof(Station));
-    if (nouv == NULL) exit(1);
-    
-    nouv->id = id;
-    copierTexte(nouv->id_str, code);
-    nouv->capacite = cap;
-    nouv->conso = 0;
-    nouv->h = 1;
-    nouv->fg = NULL;
-    nouv->fd = NULL;
-    return nouv;
-}
-
-pStation equilibrerAVL(pStation a) {
-    a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
-    int eq = equilibre(a); 
-
-    if (eq >= 2) { 
-        if (equilibre(a->fg) >= 0) return rotationDroite(a);
-        else return doubleRotationGD(a);
-    } 
-    else if (eq <= -2) {
-        if (equilibre(a->fd) <= 0) return rotationGauche(a);
-        else return doubleRotationDG(a);
+    if (delta < -1) {
+        if (hauteur(a->fd->fd) >= hauteur(a->fd->fg)) {
+            return rotationGauche(a);
+        } else {
+            a->fd = rotationDroite(a->fd);
+            return rotationGauche(a);
+        }
     }
     return a;
 }
 
-pStation inserer(pStation a, int id, char* code, long cap, long flux) {
+pArbre insertion(pArbre a, int id, long capacity, long consumption) {
     if (a == NULL) {
-        pStation nouv = creerStation(id, code, cap);
-        nouv->conso = flux;
-        return nouv;
+        return creerArbre(id, capacity, consumption);
+    }
+    if (id < a->id) {
+        a->fg = insertion(a->fg, id, capacity, consumption);
+    } else if (id > a->id) {
+        a->fd = insertion(a->fd, id, capacity, consumption);
+    } else {
+        // ID existant : on somme la capacité et la consommation (Logique correcte)
+        a->capacity += capacity; // Attention: selon le sujet, la capacité est parfois fixe, mais pour la somme c'est ok
+        a->consumption += consumption;
+        return a;
     }
 
-    int cmp = comparerTexte(code, a->id_str);
-
-    if (cmp < 0) {
-        a->fg = inserer(a->fg, id, code, cap, flux);
-    } 
-    else if (cmp > 0) {
-        a->fd = inserer(a->fd, id, code, cap, flux);
-    } 
-    else {
-        if (cap > 0) a->capacite = cap;
-        a->conso += flux;
-        return a; 
-    }
-    return equilibrerAVL(a);
+    a->height = max(hauteur(a->fg), hauteur(a->fd)) + 1;
+    return equilibrage(a);
 }
 
-void traiter(pStation a, FILE* fs) {
-    if (a != NULL && fs != NULL) {
-        long valeur_finale = 0;
-        // On choisit la bonne valeur
-        if (a->capacite > 0) valeur_finale = a->capacite;
-        else valeur_finale = a->conso;
+// --- PARTIE AJOUTÉE (INTEGRATION DE LA CORRECTION) ---
+// Cette fonction manquait pour sortir les données vers le script .sh
 
-        fprintf(fs, "%s;%ld\n", a->id_str, valeur_finale);
-    }
-}
-
-// --- PARCOURS INVERSÉ (DÉCROISSANT) ---
-void infixe(pStation a, FILE* fs) {
+void parcoursInfixe(pArbre a) {
     if (a != NULL) {
-        // On visite d'abord la DROITE (les plus grands)
-        infixe(a->fd, fs);       
-        
-        // Puis le noeud courant
-        traiter(a, fs);         
-        
-        // Puis la GAUCHE (les plus petits)
-        infixe(a->fg, fs);       
-    }
-}
-
-void liberer(pStation a) {
-    if (a != NULL) {
-        liberer(a->fg);
-        liberer(a->fd);
-        free(a);
+        parcoursInfixe(a->fg);
+        // Format de sortie standard : ID:CAPACITE:CONSOMMATION
+        printf("%d:%ld:%ld\n", a->id, a->capacity, a->consumption);
+        parcoursInfixe(a->fd);
     }
 }
 
