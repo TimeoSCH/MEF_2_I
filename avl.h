@@ -5,23 +5,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Définition de la structure conforme aux cours (fg/fd)
+// Définition de la structure
 typedef struct Station {
-    int id;                 // Identifiant numérique
-    char id_str[50];        // Identifiant texte
-    long capacite;          // Capacité (pour le max)
-    long conso;             // Consommation 
-    int h;                  
-    struct Station *fg;     
-    struct Station *fd;     
+    int id;             // Identifiant numérique
+    char id_str[50];    // Identifiant texte
+    long capacite;      // Capacité
+    long conso;         // Consommation 
+    int h;              // Hauteur
+    struct Station *fg; // Fils gauche
+    struct Station *fd; // Fils droit
 } Station;
 
-typedef Station* pStation; // Pointeur vers Station 
+typedef Station* pStation;
 
-// Fonctions de base
+// --- Prototypes ---
+
+// Utilitaires
 int max(int a, int b);
 int hauteur(pStation a);
-int equilibre(pStation a); // Facteur d'équilibre
+int equilibre(pStation a);
 
 // Rotations
 pStation rotationDroite(pStation y);
@@ -30,9 +32,13 @@ pStation doubleRotationGD(pStation a);
 pStation doubleRotationDG(pStation a);
 
 // Fonctions principales
-pStation creerStation(int id, char* code, long cap);
+// CORRECTION ICI : Ajout du 4ème argument 'long conso' pour correspondre au .c
+pStation creerStation(int id, char* code, long cap, long conso);
+
 pStation inserer(pStation a, int id, char* code, long cap, long flux);
-void infixe(pStation a, FILE* fs); // Parcours infixe inverse
+
+// Parcours et mémoire
+void infixe(pStation a, FILE* fs);
 void liberer(pStation a);
 
 #endif
