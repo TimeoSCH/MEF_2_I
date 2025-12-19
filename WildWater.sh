@@ -14,25 +14,32 @@ generer_graphique() {
     local diviseur="$5"
     local unite="$6"
 
+    # Si fichier vide, on quitte
     if [ ! -s "$input" ]; then return; fi
 
     gnuplot -persist <<-GNU
         set terminal png size 1800,900 enhanced font "arial,12"
         set output '$output'
+        
         set title '$titre' font "arial,16"
         set xlabel 'Identifiant Station' font "arial,14"
         set ylabel 'Volume ($unite)' font "arial,14"
+        
         set style data histogram
         set style histogram cluster gap 1
         set style fill solid 1.0 border -1
         set boxwidth 0.8 relative
+
         set grid ytics linestyle 1 lc rgb "#B0B0B0"
         set ytics font "arial,12"
         set xtics rotate by -45 scale 0 font "arial,10"
+        
         set bmargin 15
         set lmargin 12
         set key off
         set datafile separator ";"
+        
+        # Division par l'échelle (1 ou 1 million)
         plot '$input' using (\$2/$diviseur):xtic(1) linecolor rgb "$color"
 GNU
 }
@@ -57,7 +64,7 @@ fi
 rm -f graphs/*.png
 mkdir -p graphs tmp
 
-echo "=== Génération (Tri Décroissant via C-Wire) ==="
+echo "=== Génération des graphiques (Trié par Volume) ==="
 
 for MODE in "max" "src" "real"; do
     case "${MODE}" in
@@ -81,16 +88,18 @@ for MODE in "max" "src" "real"; do
     "${EXEC}" "${DATA_FILE}" "histo" "${MODE}"
     
     if [ -s "stats.csv" ]; then
-        # On ne trie PLUS avec le shell (sort), car le C sort déjà en décroissant.
-        # stats.csv contient : [Plus Gros] ... [Plus Petit]
+        # 1. On trie le fichier généré par le C par ordre croissant de volume (colonne 2)
+        # -t";" : séparateur point-virgule
+        # -k2,2n : trier sur la 2ème colonne, en numérique
+        sort -t";" -k2,2n stats.csv > tmp/sorted_volume.tmp
 
-        # Max 10 = Les 10 premières lignes (le haut du panier)
-        head -n 10 stats.csv > tmp/max10.dat
-        generer_graphique "tmp/max10.dat" "graphs/${MODE}_max10.png" "${SUJET} - 10 Plus Forts" "#B22222" "$DIVISEUR" "$UNITE"
-
-        # Min 50 = Les 50 dernières lignes (le bas du panier)
-        tail -n 50 stats.csv > tmp/min50.dat
+        # 2. Min 50 : On prend les 50 premières lignes (les plus petits volumes)
+        head -n 50 tmp/sorted_volume.tmp > tmp/min50.dat
         generer_graphique "tmp/min50.dat" "graphs/${MODE}_min50.png" "${SUJET} - 50 Plus Faibles" "#228B22" "$DIVISEUR" "$UNITE"
+
+        # 3. Max 10 : On prend les 10 dernières lignes (les plus gros volumes)
+        tail -n 10 tmp/sorted_volume.tmp > tmp/max10.dat
+        generer_graphique "tmp/max10.dat" "graphs/${MODE}_max10.png" "${SUJET} - 10 Plus Forts" "#B22222" "$DIVISEUR" "$UNITE"
         
         echo "   -> OK."
     else
