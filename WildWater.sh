@@ -1,122 +1,103 @@
 #!/bin/bash
 
-# Initialisation des variables [cite: 921]
-EXEC="c-wildwater"
-DATA_FILE="Data.csv"
-# Utilisation de la substitution de commande $() [cite: 977]
+EXEC="./c-wire"
+DEFAULT_DATA="water.dat"
+MAKEFILE="Makefile"
 START_TIME=$(date +%s)
 
-# Définition de la fonction d'aide [cite: 1450]
 show_help() {
-    echo "Usage: $0 [histo max|src|real] | [leaks <FactoryID>]"
-    echo "  histo max  : Histogramme de la capacité maximale de traitement."
-    echo "  histo src  : Histogramme du volume total capté."
-    echo "  histo real : Histogramme du volume réellement traité."
-    echo "  leaks ID   : Calcul des fuites pour l'usine donnée."
+    echo "Usage: $0 [fichier_dat]"
+    echo "Génère 6 histogrammes (Min 50 / Max 10) pour 3 catégories."
+    echo "Exemple: $0 water.dat"
 }
 
-# Fonction de fin de script avec calcul du temps [cite: 1022]
 end_script() {
-    # Récupération de l'argument (code de retour) [cite: 1445]
     RET_VAL=${1}
     END_TIME=$(date +%s)
-    # Calcul arithmétique avec $(( ... )) [cite: 1022]
     DURATION=$((END_TIME - START_TIME))
-    
+    echo "------------------------------------------------"
     echo "Durée totale du traitement : ${DURATION} secondes."
     exit ${RET_VAL}
 }
 
-# Vérification de la présence de l'exécutable [cite: 1322]
-# L'opérateur ! est séparé par un espace [cite: 1342]
-if [ ! -f "${EXEC}" ] ; then
+generer_graphique() {
+    local input="$1"
+    local output="$2"
+    local titre="$3"
+    local color="$4"
+
+    if [ ! -s "$input" ]; then return; fi
+
+    gnuplot -persist <<-GNU
+        set terminal png size 1800,900 enhanced font "arial,11"
+        set output '$output'
+        set title '$titre'
+        set datafile separator ";"
+        set style data histograms
+        set style fill solid 1.0 border -1
+        set boxwidth 0.7
+        set xtics rotate by -45 scale 0 font ",9"
+        set xlabel 'Identifiant Station'
+        set ylabel 'Volume (m3)'
+        set grid ytics
+        set bmargin 12
+        plot '$input' using 2:xtic(1) notitle linecolor rgb "$color"
+GNU
+}
+
+if [ ! -x "${EXEC}" ] ; then
     echo "Compilation en cours..."
+    if [ ! -f "${MAKEFILE}" ]; then
+        echo "Erreur : Makefile introuvable."
+        end_script 1
+    fi
     make
-    # Vérification du code retour de la commande précédente [cite: 740]
     if [ $? -ne 0 ] ; then
         echo "Erreur : La compilation a échoué."
         end_script 1
     fi
 fi
 
-# Vérification du nombre d'arguments [cite: 1445]
-if [ $# -lt 1 ] ; then
-    echo "Erreur : Commande incomplète."
+DATA_FILE="${1:-$DEFAULT_DATA}"
+
+if [ ! -f "${DATA_FILE}" ] ; then
+    echo "Erreur : Fichier '${DATA_FILE}' introuvable."
     show_help
     end_script 1
 fi
 
-MODE="${1}"
+rm -f graphs/*.png
+mkdir -p graphs tmp
 
-# Utilisation de la structure case 
-case "${MODE}" in
-    "histo")
-        # Vérification argument manquant (chaine vide) [cite: 1311]
-        if [ -z "${2}" ] ; then
-            echo "Erreur : Argument manquant pour 'histo'."
-            end_script 1
-        fi
+echo "=== Démarrage de la génération des 6 histogrammes ==="
 
-        # Vérification argument invalide avec OR (||) [cite: 1107]
-        if [ "${2}" != "max" ] && [ "${2}" != "src" ] && [ "${2}" != "real" ] ; then
-            echo "Erreur : Argument '${2}' invalide."
-            end_script 1
-        fi
+for MODE in "max" "src" "real"; do
+    case "${MODE}" in
+        "max")  SUJET="Capacité Usine (HVA)";;
+        "src")  SUJET="Volume Capté (Sources)";;
+        "real") SUJET="Volume Consommé (Utilisateurs)";;
+    esac
 
-        SUB_MODE="${2}"
-        OUTPUT_DAT="histo_${SUB_MODE}.dat"
-        OUTPUT_IMG="histo_${SUB_MODE}.png"
+    echo "Traitement : ${MODE}"
 
-        # Appel du programme C
-        ./"${EXEC}" "${MODE}" "${SUB_MODE}" "${DATA_FILE}" "${OUTPUT_DAT}"
-        
-        # Vérification du succès du C
-        if [ $? -ne 0 ] ; then
-            echo "Erreur lors de l'exécution du programme C."
-            end_script 1
-        fi
+    "${EXEC}" "${DATA_FILE}" "histo" "${MODE}"
+    if [ $? -ne 0 ]; then
+        echo "Erreur lors de l'exécution C pour ${MODE}"
+        continue
+    fi
+    
+    if [ -f "stats.csv" ]; then
+        tail -n +2 stats.csv | sort -t";" -k2,2n > tmp/sorted.tmp
 
-        # Vérification existence du fichier de sortie [cite: 1320]
-        if [ -f "${OUTPUT_DAT}" ] ; then
-            gnuplot -e "
-                set terminal png size 1000,600;
-                set output '${OUTPUT_IMG}';
-                set title 'Histogramme : ${SUB_MODE}';
-                set style data histograms;
-                set style fill solid 1.0 border -1;
-                set boxwidth 0.7;
-                set xtics rotate by -45;
-                set datafile separator ';';
-                set ylabel 'Volume (k m^3)';
-                plot '${OUTPUT_DAT}' using 2:xtic(1) title '${SUB_MODE}' with boxes lc rgb 'light-blue';
-            "
-        else
-            echo "Erreur : Fichier '${OUTPUT_DAT}' non généré."
-            end_script 1
-        fi
-        ;;
+        head -n 50 tmp/sorted.tmp > tmp/min50.dat
+        generer_graphique "tmp/min50.dat" "graphs/${MODE}_min50.png" "${SUJET} - 50 Plus Faibles" "forest-green"
 
-    "leaks")
-        if [ -z "${2}" ] ; then
-            echo "Erreur : Identifiant manquant."
-            end_script 1
-        fi
+        tail -n 10 tmp/sorted.tmp > tmp/max10.dat
+        generer_graphique "tmp/max10.dat" "graphs/${MODE}_max10.png" "${SUJET} - 10 Plus Forts" "firebrick"
+    fi
+done
 
-        FACTORY_ID="${2}"
-        
-        ./"${EXEC}" "${MODE}" "${FACTORY_ID}" "${DATA_FILE}"
-        
-        if [ $? -ne 0 ] ; then
-            echo "Erreur lors de l'exécution du programme C."
-            end_script 1
-        fi
-        ;;
-
-    *)
-        echo "Erreur : Commande '${MODE}' inconnue."
-        show_help
-        end_script 1
-        ;;
-esac
+echo "=== Terminé ! Images disponibles dans graphs/ ==="
+ls -1 graphs/*.png
 
 end_script 0
