@@ -1,13 +1,11 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g
 
-# Nom de votre exécutable final
-EXEC = programme
+# Nom de l'exécutable généré
+EXEC = c-wire
 
-# Liste des fichiers sources
+# Fichiers sources
 SRC = main.c avl.c
-
-# Liste des fichiers objets (générée automatiquement)
 OBJ = $(SRC:.c=.o)
 
 all: $(EXEC)
