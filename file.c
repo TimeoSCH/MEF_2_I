@@ -1,12 +1,3 @@
-Si le traitement "real" prend trop de temps, c'est normal : il y a des millions de consommateurs dans le fichier, alors qu'il n'y a que quelques centaines de centrales pour max et src. Ton programme doit construire un arbre immense.
-
-Cependant, on peut accélérer le programme x10 en activant l'optimisation maximale du compilateur (-O3) et en utilisant une astuce de mémoire tampon.
-
-Voici les 2 étapes pour régler la lenteur :
-Étape 1 : Optimiser la lecture du fichier (file.c)
-
-La lecture ligne par ligne est lente. On va ajouter une ligne pour lire par gros blocs (Buffer). Copie ce code optimisé dans file.c.
-C
 
 #include <stdio.h>
 #include <stdlib.h>
