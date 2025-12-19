@@ -21,11 +21,15 @@ int main(int argc, char** argv) {
     char* commande = argv[2]; 
     char* mode = argv[3]; 
 
+    // Pointeur vers la racine de l'arbre
     pStation arbre = NULL;
 
+    // Sortie standard (stdout) pour redirection par le script Shell
     FILE* f_out = stdout; 
 
+    // --- Traitement : HISTO ---
     if (estEgal(commande, "histo")) {
+        // En-têtes pour les graphiques
         if (estEgal(mode, "max")) {
             fprintf(f_out, "Station:Capacite:Consommation\n");
         } 
@@ -33,14 +37,13 @@ int main(int argc, char** argv) {
             fprintf(f_out, "Station:Capacite:Consommation\n");
         }
         else {
-            // En-tête générique pour les autres modes
             fprintf(f_out, "Station:Capacite:Consommation\n");
         }
         
-        // Chargement de l'arbre (fonction définie dans file.c)
+        // Chargement (file.c)
         charger(fichier_in, &arbre, mode);
         
-        // Écriture des données triées (fonction définie dans avl.c)
+        // Écriture (avl.c)
         infixe(arbre, f_out);
         
         // Nettoyage
@@ -49,8 +52,10 @@ int main(int argc, char** argv) {
     // --- Traitement : LEAKS ---
     else if (estEgal(commande, "leaks")) {
         fprintf(f_out, "Station:Fuite\n");
-    
-        traiter_fuites(fichier_in, mode); 
+        
+        // --- CORRECTION ICI ---
+        // On ajoute f_out comme 3ème argument
+        traiter_fuites(fichier_in, mode, f_out); 
     }
     else {
         fprintf(stderr, "Commande inconnue : %s\n", commande);
