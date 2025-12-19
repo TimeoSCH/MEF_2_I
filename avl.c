@@ -1,20 +1,18 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "avl.h"
 
-// Fonctions utilitaires internes (remplacent string.h) 
+// --- Fonctions utilitaires ---
 
-// Remplace strcmp : renvoie un nb < 0, 0 ou > 0
 int comparerTexte(const char* s1, const char* s2) {
     int i = 0;
     while (s1[i] != '\0' && s2[i] != '\0') {
-        if (s1[i] != s2[i]) {
-            return (s1[i] - s2[i]); // Retourne la différence ASCII
-        }
+        if (s1[i] != s2[i]) return (s1[i] - s2[i]);
         i++;
     }
     return (s1[i] - s2[i]);
 }
 
-// Remplace strcpy
 void copierTexte(char* dest, const char* src) {
     int i = 0;
     while (src[i] != '\0') {
@@ -24,27 +22,22 @@ void copierTexte(char* dest, const char* src) {
     dest[i] = '\0';
 }
 
-
-
-// Utile pour les hauteurs
 int max(int a, int b) {
     if (a > b) return a;
     return b;
 }
 
-// Récupère la hauteur d'un noeud (gère le cas NULL)
 int hauteur(pStation a) {
     if (a == NULL) return 0;
     return a->h;
 }
 
-// Calcul du facteur d'équilibre : h(fg) - h(fd)
 int equilibre(pStation a) {
     if (a == NULL) return 0;
     return hauteur(a->fg) - hauteur(a->fd);
 }
 
-// Rotations Simples 
+// --- Rotations ---
 
 pStation rotationDroite(pStation a) {
     pStation pivot = a->fg;
@@ -55,7 +48,6 @@ pStation rotationDroite(pStation a) {
     return pivot;
 }
 
-// Par symétrie, voici la rotation Gauche adaptée
 pStation rotationGauche(pStation a) {
     pStation pivot = a->fd;
     a->fd = pivot->fg;
@@ -65,13 +57,11 @@ pStation rotationGauche(pStation a) {
     return pivot;
 }
 
-//  Rotations Doubles 
 pStation doubleRotationGD(pStation a){
    a->fg=rotationGauche(a->fg);
    a=rotationDroite(a);
    return a;
 }
-
 
 pStation doubleRotationDG(pStation a){
    a->fd=rotationDroite(a->fd);
@@ -79,19 +69,14 @@ pStation doubleRotationDG(pStation a){
    return a;
 }
 
-
-//  Gestion de l'arbre 
+// --- Gestion AVL ---
 
 pStation creerStation(int id, char* code, long cap) {
     pStation nouv = (pStation)malloc(sizeof(Station));
-    if (nouv == NULL) {
-        exit(1); // Erreur alloc
-    }
+    if (nouv == NULL) exit(1);
+    
     nouv->id = id;
-    
-    // Remplacement de strcpy par notre boucle
     copierTexte(nouv->id_str, code);
-    
     nouv->capacite = cap;
     nouv->conso = 0;
     nouv->h = 1;
@@ -101,33 +86,19 @@ pStation creerStation(int id, char* code, long cap) {
 }
 
 pStation equilibrerAVL(pStation a) {
-    // 1. Mise à jour de la hauteur
     a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
-
-    // 2. Calcul du facteur d'équilibre
     int eq = equilibre(a); 
 
-    // 3. Tests et Rotations
     if (eq >= 2) { 
-        // L'arbre penche à GAUCHE (eq positif car hauteur(fg) > hauteur(fd))
-        if (equilibre(a->fg) >= 0) {
-            return rotationDroite(a);
-        } else {
-            return doubleRotationGD(a);
-        }
+        if (equilibre(a->fg) >= 0) return rotationDroite(a);
+        else return doubleRotationGD(a);
     } 
     else if (eq <= -2) {
-        // L'arbre penche à DROITE (eq négatif)
-        if (equilibre(a->fd) <= 0) {
-            return rotationGauche(a);
-        } else {
-            return doubleRotationDG(a);
-        }
+        if (equilibre(a->fd) <= 0) return rotationGauche(a);
+        else return doubleRotationDG(a);
     }
-    
     return a;
 }
-
 
 pStation inserer(pStation a, int id, char* code, long cap, long flux) {
     if (a == NULL) {
@@ -145,7 +116,6 @@ pStation inserer(pStation a, int id, char* code, long cap, long flux) {
         a->fd = inserer(a->fd, id, code, cap, flux);
     } 
     else {
-        // Mise à jour (INCHANGÉE)
         if (cap > 0) a->capacite = cap;
         a->conso += flux;
         return a; 
@@ -155,20 +125,29 @@ pStation inserer(pStation a, int id, char* code, long cap, long flux) {
 
 void traiter(pStation a, FILE* fs) {
     if (a != NULL && fs != NULL) {
-        fprintf(fs, "%s;%ld;%ld\n", a->id_str, a->capacite, a->conso);
+        long valeur_finale = 0;
+        // On choisit la bonne valeur
+        if (a->capacite > 0) valeur_finale = a->capacite;
+        else valeur_finale = a->conso;
+
+        fprintf(fs, "%s;%ld\n", a->id_str, valeur_finale);
     }
 }
 
-// Parcours infixe 
+// --- PARCOURS INVERSÉ (DÉCROISSANT) ---
 void infixe(pStation a, FILE* fs) {
     if (a != NULL) {
+        // On visite d'abord la DROITE (les plus grands)
         infixe(a->fd, fs);       
+        
+        // Puis le noeud courant
         traiter(a, fs);         
+        
+        // Puis la GAUCHE (les plus petits)
         infixe(a->fg, fs);       
     }
 }
 
-// Fonction de libération de la mémoire
 void liberer(pStation a) {
     if (a != NULL) {
         liberer(a->fg);
@@ -176,6 +155,4 @@ void liberer(pStation a) {
         free(a);
     }
 }
-
-
 
