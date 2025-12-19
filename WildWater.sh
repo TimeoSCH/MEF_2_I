@@ -1,12 +1,15 @@
 #!/bin/bash
 
+# --- 1. Démarrage Chronomètre ---
 START_TIME=$(date +%s)
 
+# --- Configuration ---
 EXEC="./c-wire"
 DEFAULT_DATA="water.dat"
 MAKEFILE="Makefile"
 DATA_FILE="$DEFAULT_DATA"
 
+# --- Fonction d'affichage de la durée ---
 afficher_duree() {
     END_TIME=$(date +%s)
     DURATION=$((END_TIME - START_TIME))
@@ -25,13 +28,10 @@ usage() {
     exit 1
 }
 
+# --- Fonction graphique ---
 generer_graphique() {
-    local input="$1"
-    local output="$2"
-    local titre="$3"
-    local color="$4"
-    local diviseur="$5"
-    local unite="$6"
+    local input="$1"; local output="$2"; local titre="$3"
+    local color="$4"; local diviseur="$5"; local unite="$6"
 
     if [ ! -s "$input" ]; then return; fi
 
@@ -57,115 +57,79 @@ generer_graphique() {
 GNU
 }
 
-if [ "$1" == "-h" ]; then
-    usage
-fi
+# --- 2. Vérification Arguments ---
+if [ "$1" == "-h" ]; then usage; fi
 
-# Gestion du fichier d'entrée optionnel
 if [ -f "$1" ] && [ "$#" -eq 3 ]; then
-    DATA_FILE="$1"
-    ACTION="$2"
-    OPTION="$3"
+    DATA_FILE="$1"; ACTION="$2"; OPTION="$3"
 elif [ "$#" -eq 2 ]; then
-    ACTION="$1"
-    OPTION="$2"
+    ACTION="$1"; OPTION="$2"
 else
     usage
 fi
 
 if [ ! -f "$DATA_FILE" ]; then
-     echo "Erreur : Fichier de données '$DATA_FILE' introuvable."
-     afficher_duree
-     exit 1
+     echo "Erreur : Fichier '$DATA_FILE' introuvable."
+     afficher_duree; exit 1
 fi
 
-# Validation de l'action
 case "$ACTION" in
     "histo")
         if [[ "$OPTION" != "max" && "$OPTION" != "src" && "$OPTION" != "real" ]]; then
-            echo "Erreur : Pour histo, l'option doit être 'max', 'src' ou 'real'."
             usage
-        fi
-        ;;
+        fi ;;
     "leaks")
-        if [ -z "$OPTION" ]; then
-            echo "Erreur : L'identifiant de l'usine est manquant pour leaks."
-            usage
-        fi
-        ;;
-    *)
-        echo "Erreur : Commande '$ACTION' inconnue."
-        usage
-        ;;
+        if [ -z "$OPTION" ]; then usage; fi ;;
+    *) usage ;;
 esac
 
-if [ ! -x "${EXEC}" ]; then
-    echo "Exécutable introuvable. Compilation en cours..."
-    
-    if [ -f "${MAKEFILE}" ]; then
-        make
-    else
-        # Compilation manuelle de secours (incluant leaks.c)
-        echo "Attention : Makefile introuvable. Compilation manuelle."
-        gcc -O3 -march=native -o c-wire main.c file.c avl.c leaks.c
-    fi
-
-    if [ ! -x "${EXEC}" ]; then
-        echo "Erreur critique : La compilation a échoué."
-        afficher_duree
-        exit 1
-    fi
+# --- 3. Compilation Intelligente ---
+# On lance make à chaque fois.
+# S'il n'y a rien à faire, make répondra "Nothing to be done" en 0.01s.
+if [ -f "${MAKEFILE}" ]; then
+    make
+else
+    # Fallback si pas de Makefile (plus lent car recompile tout)
+    echo "Attention : Makefile introuvable."
+    gcc -o c-wire main.c file.c avl.c leaks.c
 fi
 
-echo "Lancement du traitement : $ACTION $OPTION"
+if [ ! -x "${EXEC}" ]; then
+    echo "Erreur critique : La compilation a échoué."
+    afficher_duree; exit 1
+fi
+
+# --- 4. Exécution ---
+echo "Lancement : $ACTION $OPTION"
 rm -f stats.csv
 
-# Appel du programme C
 "${EXEC}" "${DATA_FILE}" "${ACTION}" "${OPTION}"
-CODE_RETOUR=$?
-
-if [ $CODE_RETOUR -ne 0 ]; then
-    echo "Erreur : Le programme C s'est arrêté avec le code $CODE_RETOUR."
-    afficher_duree
-    exit 1
+if [ $? -ne 0 ]; then
+    echo "Erreur lors de l'exécution du C."
+    afficher_duree; exit 1
 fi
 
+# --- 5. Post-Traitement ---
 if [ "$ACTION" == "histo" ]; then
     if [ ! -s "stats.csv" ]; then
-        echo "Avertissement : Le fichier de sortie est vide."
+        echo "Avertissement : Fichier vide."
     else
-        # Configuration selon le mode
         case "${OPTION}" in
-            "max")  
-                TITRE="Volume max traitement usine (HVA)"
-                DIV=1000000; UNITE="Millions de m3" ;;
-            "src")  
-                TITRE="Volume total capté par les sources"
-                DIV=1000000; UNITE="Millions de m3" ;;
-            "real") 
-                TITRE="Volume total réellement traité"
-                DIV=1; UNITE="m3" ;;
+            "max")  TITRE="Volume max (HVA)"; DIV=1000000; UNITE="Millions m3" ;;
+            "src")  TITRE="Volume sources"; DIV=1000000; UNITE="Millions m3" ;;
+            "real") TITRE="Volume réel"; DIV=1; UNITE="m3" ;;
         esac
 
         mkdir -p graphs tmp
-        echo "Génération des graphiques..."
-
-        # Tri croissant
         sort -t";" -k2,2n stats.csv > tmp/sorted.tmp
-
-        # Min 50
         head -n 50 tmp/sorted.tmp > tmp/min50.dat
-        generer_graphique "tmp/min50.dat" "graphs/${OPTION}_min50.png" "$TITRE - 50 Plus Faibles" "#228B22" "$DIV" "$UNITE"
-
-        # Max 10
+        generer_graphique "tmp/min50.dat" "graphs/${OPTION}_min50.png" "$TITRE - 50 Min" "#228B22" "$DIV" "$UNITE"
         tail -n 10 tmp/sorted.tmp > tmp/max10.dat
-        generer_graphique "tmp/max10.dat" "graphs/${OPTION}_max10.png" "$TITRE - 10 Plus Forts" "#B22222" "$DIV" "$UNITE"
-        
-        echo "Graphiques disponibles dans le dossier graphs/."
+        generer_graphique "tmp/max10.dat" "graphs/${OPTION}_max10.png" "$TITRE - 10 Max" "#B22222" "$DIV" "$UNITE"
+        echo "Graphiques générés."
     fi
-
 elif [ "$ACTION" == "leaks" ]; then
-    echo "Analyse des fuites terminée. Résultat disponible dans 'stats.csv'."
+    echo "Résultat dans 'stats.csv'."
 fi
 
 afficher_duree
