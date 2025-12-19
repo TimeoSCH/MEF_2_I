@@ -4,7 +4,7 @@
 #include "avl.h"
 #include <stdio.h>
 #include <stdlib.h>
-// On a retiré <string.h> pour faire "maison"
+#include <string.h>
 
 // Définition de la structure conforme aux cours (fg/fd)
 typedef struct Station {
