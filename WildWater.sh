@@ -47,25 +47,24 @@ generer_graphique() {
 GNU
 }
 
-# --- Compilation CONDITIONNELLE ---
-# On ne compile QUE si le fichier c-wire n'existe pas
-if [ ! -x "${EXEC}" ]; then
-    echo "L'exécutable est absent. Compilation en cours..."
-    
-    if [ -f "${MAKEFILE}" ]; then
-        make
-    else
-        # Compilation standard sans optimisation
-        gcc -o c-wire main.c file.c avl.c
-    fi
+# --- Compilation STANDARD (Sans optimisation) ---
+echo "Compilation du programme..."
 
-    # Vérification après tentative de compilation
-    if [ ! -x "${EXEC}" ]; then
-        echo "Erreur critique : La compilation a échoué."
-        exit 1
-    fi
+# 1. On supprime l'ancien exécutable pour forcer la mise à jour
+rm -f c-wire 
+
+# 2. On compile simplement (sans -O3)
+if [ -f "${MAKEFILE}" ]; then
+    make
 else
-    echo "L'exécutable existe déjà. Démarrage immédiat..."
+    # Si pas de Makefile, compilation manuelle standard
+    gcc -o c-wire main.c file.c avl.c
+fi
+
+# 3. Vérification
+if [ ! -x "${EXEC}" ]; then
+    echo "Erreur critique : La compilation a échoué."
+    exit 1
 fi
 
 # --- Préparation ---
@@ -121,4 +120,3 @@ for MODE in "max" "src" "real"; do
 done
 
 echo "=== Terminé ! ==="
-rm -f tmp/sorted_volume.tmp tmp/min50.dat tmp/max10.dat "$TMP_INPUT"
