@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// --- VOTRE CODE (STRUCTURE ET OUTILS) ---
+
 
 pArbre creerArbre(int id, long capacity, long consumption) {
     pArbre new = malloc(sizeof(Arbre));
