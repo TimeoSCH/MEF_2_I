@@ -1,15 +1,12 @@
 #!/bin/bash
 
-# --- 1. Démarrage Chronomètre ---
 START_TIME=$(date +%s)
 
-# --- Configuration ---
 EXEC="./c-wire"
 DEFAULT_DATA="water.dat"
 MAKEFILE="Makefile"
-DATA_FILE="$DEFAULT_DATA" # Par défaut, on peut le changer si besoin
+DATA_FILE="$DEFAULT_DATA"
 
-# --- Fonction d'affichage de la durée (appelée à la fin ou sur erreur) ---
 afficher_duree() {
     END_TIME=$(date +%s)
     DURATION=$((END_TIME - START_TIME))
@@ -22,12 +19,12 @@ usage() {
     echo "Commandes valides :"
     echo "  $0 histo <max|src|real>"
     echo "  $0 leaks <Identifiant_Usine>"
+    echo "  $0 [fichier.dat] histo <max|src|real>"
     echo "  $0 -h (Aide)"
     afficher_duree
     exit 1
 }
 
-# --- Fonction graphique (Gnuplot) ---
 generer_graphique() {
     local input="$1"
     local output="$2"
@@ -60,23 +57,24 @@ generer_graphique() {
 GNU
 }
 
-# --- 2. Vérification des Arguments (Strict) ---
-
-# Vérification du nombre d'arguments
-if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+if [ "$1" == "-h" ]; then
     usage
 fi
 
-ACTION="$1"
-OPTION="$2"
-
-# Si on a 3 arguments (ex: ./WildWater.sh data.dat histo max), on décale
+# Gestion du fichier d'entrée optionnel
 if [ -f "$1" ] && [ "$#" -eq 3 ]; then
     DATA_FILE="$1"
     ACTION="$2"
     OPTION="$3"
-elif [ ! -f "$DEFAULT_DATA" ] && [ "$#" -eq 2 ]; then
-     echo "Erreur : Fichier de données '$DEFAULT_DATA' introuvable."
+elif [ "$#" -eq 2 ]; then
+    ACTION="$1"
+    OPTION="$2"
+else
+    usage
+fi
+
+if [ ! -f "$DATA_FILE" ]; then
+     echo "Erreur : Fichier de données '$DATA_FILE' introuvable."
      afficher_duree
      exit 1
 fi
@@ -85,7 +83,7 @@ fi
 case "$ACTION" in
     "histo")
         if [[ "$OPTION" != "max" && "$OPTION" != "src" && "$OPTION" != "real" ]]; then
-            echo "Erreur : L'argument pour histo doit être 'max', 'src' ou 'real'."
+            echo "Erreur : Pour histo, l'option doit être 'max', 'src' ou 'real'."
             usage
         fi
         ;;
@@ -101,44 +99,40 @@ case "$ACTION" in
         ;;
 esac
 
-# --- 3. Compilation (Vérification existence) ---
 if [ ! -x "${EXEC}" ]; then
-    echo "Exécutable introuvable. Compilation..."
+    echo "Exécutable introuvable. Compilation en cours..."
+    
     if [ -f "${MAKEFILE}" ]; then
         make
     else
-        rm -f c-wire
-        gcc -O3 -o c-wire main.c file.c avl.c
+        # Compilation manuelle de secours (incluant leaks.c)
+        echo "Attention : Makefile introuvable. Compilation manuelle."
+        gcc -O3 -march=native -o c-wire main.c file.c avl.c leaks.c
     fi
 
     if [ ! -x "${EXEC}" ]; then
-        echo "Erreur : La compilation a échoué."
+        echo "Erreur critique : La compilation a échoué."
         afficher_duree
         exit 1
     fi
 fi
 
-# --- 4. Exécution du Traitement ---
-
 echo "Lancement du traitement : $ACTION $OPTION"
 rm -f stats.csv
 
-# Appel du programme C (On passe le fichier, l'action et l'option)
+# Appel du programme C
 "${EXEC}" "${DATA_FILE}" "${ACTION}" "${OPTION}"
 CODE_RETOUR=$?
 
-# Vérification du code retour du C
 if [ $CODE_RETOUR -ne 0 ]; then
     echo "Erreur : Le programme C s'est arrêté avec le code $CODE_RETOUR."
     afficher_duree
     exit 1
 fi
 
-# --- 5. Post-Traitement (Graphiques ou Affichage) ---
-
 if [ "$ACTION" == "histo" ]; then
     if [ ! -s "stats.csv" ]; then
-        echo "Attention : Le fichier de sortie est vide."
+        echo "Avertissement : Le fichier de sortie est vide."
     else
         # Configuration selon le mode
         case "${OPTION}" in
@@ -167,12 +161,11 @@ if [ "$ACTION" == "histo" ]; then
         tail -n 10 tmp/sorted.tmp > tmp/max10.dat
         generer_graphique "tmp/max10.dat" "graphs/${OPTION}_max10.png" "$TITRE - 10 Plus Forts" "#B22222" "$DIV" "$UNITE"
         
-        echo "Graphiques générés dans le dossier graphs/."
+        echo "Graphiques disponibles dans le dossier graphs/."
     fi
 
 elif [ "$ACTION" == "leaks" ]; then
-    echo "Traitement des fuites terminé. Résultats dans 'stats.csv'."
-    # Le sujet ne demande pas de graphique pour leaks, juste le fichier csv.
+    echo "Analyse des fuites terminée. Résultat disponible dans 'stats.csv'."
 fi
 
 afficher_duree
