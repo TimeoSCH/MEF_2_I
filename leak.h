@@ -1,5 +1,5 @@
-#ifndef LEAKS_H
-#define LEAKS_H
+#ifndef LEAK_H
+#define LEAK_H
 
 #include <stdio.h> // Nécessaire pour FILE*
 
