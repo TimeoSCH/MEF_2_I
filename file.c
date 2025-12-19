@@ -5,7 +5,7 @@
 
 #define MAX_LIGNE 2048
 
-// --- Fonctions utilitaires manuelles ---
+// --- Fonctions utilitaires rapides ---
 
 int estEgal(const char* s1, const char* s2) {
     int i = 0;
@@ -13,16 +13,12 @@ int estEgal(const char* s1, const char* s2) {
         if (s1[i] != s2[i]) return 0;
         i++;
     }
-    if (s1[i] == '\0' && s2[i] == '\0') return 1;
-    return 0;
+    return (s1[i] == '\0' && s2[i] == '\0');
 }
 
 void copierChaine(char* dest, const char* src) {
     int i = 0;
-    while (src[i] != '\0') {
-        dest[i] = src[i];
-        i++;
-    }
+    while (src[i] != '\0') { dest[i] = src[i]; i++; }
     dest[i] = '\0';
 }
 
@@ -37,32 +33,26 @@ long chaineVersLong(const char* s) {
     return res;
 }
 
-// --- Fonction principale de chargement ---
-
+// --- CHARGEMENT RAPIDE ---
 void charger(char* chemin, pStation* racine, char* mode) {
     FILE* fp = fopen(chemin, "r");
-    if (fp == NULL) {
-        printf("Erreur : impossible d'ouvrir le fichier %s\n", chemin);
-        exit(1);
-    }
+    if (fp == NULL) exit(1);
 
     char ligne[MAX_LIGNE];
-    
-    // Ignorer l'entête
+    // Sauter l'entête
     fgets(ligne, MAX_LIGNE, fp);
 
+    // Boucle de lecture
     while (fgets(ligne, MAX_LIGNE, fp) != NULL) {
         
         char cols[5][50]; 
         char tampon[50];  
+        int idxLigne = 0, idxCol = 0, idxTampon = 0;
         
-        int idxLigne = 0; 
-        int idxCol = 0;   
-        int idxTampon = 0;
-
+        // Initialisation rapide
         for(int k=0; k<5; k++) cols[k][0] = '\0';
 
-        // --- Parsing Manuel ---
+        // Parsing manuel (Plus rapide que strtok)
         while (ligne[idxLigne] != '\0' && idxCol < 5) {
             char c = ligne[idxLigne];
             if (c == ';' || c == '\n' || c == '\r') {
@@ -71,53 +61,38 @@ void charger(char* chemin, pStation* racine, char* mode) {
                 else copierChaine(cols[idxCol], tampon);
                 idxCol++;
                 idxTampon = 0;
-            } 
-            else {
+            } else {
                 tampon[idxTampon] = c;
                 idxTampon++;
             }
             idxLigne++;
         }
 
-        // --- Conversion des valeurs ---
-        // cols[3] = Capacité (Production) -> val4
-        // cols[4] = Consommation (Load)   -> val5
-        long val4 = chaineVersLong(cols[3]); 
-        long val5 = chaineVersLong(cols[4]); 
+        // Conversion
+        long val4 = chaineVersLong(cols[3]); // Capacité
+        long val5 = chaineVersLong(cols[4]); // Consommation
 
-        // --- LOGIQUE DE FILTRAGE CORRIGÉE ---
+        // --- FILTRAGE OPTIMISÉ ---
 
-        // 1. MODE MAX (HVA) : On cherche la capacité des stations HVA
-        if (estEgal(mode, "max")) {
-            // Si c'est une station HVA (Col 1 remplie) et qu'elle a une capacité
-            if (estEgal(cols[1], "-") == 0 && val4 > 0) {
-                *racine = inserer(*racine, 0, cols[1], val4, 0);
+        // MODE SRC : Centrales (Capacité > 0 et Pas de Conso)
+        if (estEgal(mode, "src")) {
+            if (val4 > 0 && val5 == 0) { 
+                if (estEgal(cols[0], "-") == 0) *racine = inserer(*racine, 0, cols[0], val4, 0);
+                else if (estEgal(cols[1], "-") == 0) *racine = inserer(*racine, 0, cols[1], val4, 0);
             }
         }
-        
-        // 2. MODE SRC (Sources) : On cherche les centrales (Production)
-        else if (estEgal(mode, "src")) {
-            // Une source a une Capacité (val4 > 0) mais pas de Conso (val5 == 0)
-            if (val4 > 0 && val5 == 0) {
-                // Elle peut être HVB (Col 0) ou HVA (Col 1)
-                if (estEgal(cols[0], "-") == 0) {
-                    *racine = inserer(*racine, 0, cols[0], val4, 0);
-                }
-                else if (estEgal(cols[1], "-") == 0) {
-                    *racine = inserer(*racine, 0, cols[1], val4, 0);
-                }
-            }
-        }
-        
-        // 3. MODE REAL (Consommateurs) : On cherche ceux qui consomment
+        // MODE REAL : Consommateurs (Conso > 0)
         else if (estEgal(mode, "real")) {
-            // Un consommateur a une Consommation (val5 > 0)
-            // Il est identifié par le Poste (Col 2)
-            if (val5 > 0 && estEgal(cols[2], "-") == 0) {
-                *racine = inserer(*racine, 0, cols[2], 0, val5);
+            if (val5 > 0) {
+                if (estEgal(cols[2], "-") == 0) *racine = inserer(*racine, 0, cols[2], 0, val5);
+            }
+        }
+        // MODE MAX : Station HVA (Capacité > 0 et Col 1 existe)
+        else if (estEgal(mode, "max")) {
+            if (val4 > 0 && estEgal(cols[1], "-") == 0) {
+                 *racine = inserer(*racine, 0, cols[1], val4, 0);
             }
         }
     }
-
     fclose(fp);
 }
