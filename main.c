@@ -3,7 +3,7 @@
 #include <string.h>
 #include "file.h"
 #include "avl.h"
-#include "leaks.h" I
+#include "leak.h" I
 
 // Fonction pour comparer des chaînes
 int estEgalMain(const char* s1, const char* s2) {
