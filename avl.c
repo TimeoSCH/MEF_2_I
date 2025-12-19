@@ -1,114 +1,155 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "avl.h"
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
+// Fonction utilitaire : Max entre deux entiers
+int max(int a, int b) {
+    return (a > b) ? a : b;
+}
 
-pArbre creerArbre(int id, long capacity, long consumption) {
-    pArbre new = malloc(sizeof(Arbre));
+// Fonction utilitaire : Hauteur d'un noeud (gère le NULL)
+int hauteur(pStation a) {
+    if (a == NULL)
+        return 0;
+    return a->h;
+}
+
+// Fonction utilitaire : Facteur d'équilibre
+int equilibre(pStation a) {
+    if (a == NULL)
+        return 0;
+    return hauteur(a->fg) - hauteur(a->fd);
+}
+
+// Création d'une station
+// On initialise la conso à 0 car elle sera ajoutée via 'inserer'
+pStation creerStation(int id, char* code, long cap) {
+    pStation new = malloc(sizeof(Station));
     if (new == NULL) {
+        fprintf(stderr, "Erreur d'allocation mémoire\n");
         exit(1);
     }
     new->id = id;
-    new->capacity = capacity;
-    new->consumption = consumption;
-    new->height = 1;
+    // Important : on copie la chaîne de caractères
+    if (code != NULL) {
+        strncpy(new->id_str, code, 49);
+        new->id_str[49] = '\0'; // Sécurité
+    } else {
+        new->id_str[0] = '\0';
+    }
+    
+    new->capacite = cap;
+    new->conso = 0; // Initialisation
+    new->h = 1;
     new->fg = NULL;
     new->fd = NULL;
     return new;
 }
 
-int hauteur(pArbre a) {
+// --- Rotations ---
+
+pStation rotationDroite(pStation y) {
+    pStation x = y->fg;
+    pStation T2 = x->fd;
+
+    // Rotation
+    x->fd = y;
+    y->fg = T2;
+
+    // Mise à jour hauteurs
+    y->h = max(hauteur(y->fg), hauteur(y->fd)) + 1;
+    x->h = max(hauteur(x->fg), hauteur(x->fd)) + 1;
+
+    return x;
+}
+
+pStation rotationGauche(pStation x) {
+    pStation y = x->fd;
+    pStation T2 = y->fg;
+
+    // Rotation
+    y->fg = x;
+    x->fd = T2;
+
+    // Mise à jour hauteurs
+    x->h = max(hauteur(x->fg), hauteur(x->fd)) + 1;
+    y->h = max(hauteur(y->fg), hauteur(y->fd)) + 1;
+
+    return y;
+}
+
+pStation doubleRotationGD(pStation a) {
+    a->fg = rotationGauche(a->fg);
+    return rotationDroite(a);
+}
+
+pStation doubleRotationDG(pStation a) {
+    a->fd = rotationDroite(a->fd);
+    return rotationGauche(a);
+}
+
+// --- Insertion et Logique métier ---
+
+pStation inserer(pStation a, int id, char* code, long cap, long flux) {
+    // 1. Insertion classique ABR
     if (a == NULL) {
-        return 0;
-    }
-    return a->height;
-}
-
-int max(int a, int b) {
-    return (a > b) ? a : b;
-}
-
-pArbre rotationDroite(pArbre a) {
-    pArbre b = a->fg;
-    pArbre T2 = b->fd;
-
-    b->fd = a;
-    a->fg = T2;
-
-    a->height = max(hauteur(a->fg), hauteur(a->fd)) + 1;
-    b->height = max(hauteur(b->fg), hauteur(b->fd)) + 1;
-
-    return b;
-}
-
-pArbre rotationGauche(pArbre a) {
-    pArbre b = a->fd;
-    pArbre T2 = b->fg;
-
-    b->fg = a;
-    a->fd = T2;
-
-    a->height = max(hauteur(a->fg), hauteur(a->fd)) + 1;
-    b->height = max(hauteur(b->fg), hauteur(b->fd)) + 1;
-
-    return b;
-}
-
-pArbre equilibrage(pArbre a) {
-    if (a == NULL) {
-        return NULL;
+        pStation n = creerStation(id, code, cap);
+        n->conso = flux; // On assigne le premier flux
+        return n;
     }
 
-    int delta = hauteur(a->fg) - hauteur(a->fd);
-
-    if (delta > 1) {
-        if (hauteur(a->fg->fg) >= hauteur(a->fg->fd)) {
-            return rotationDroite(a);
-        } else {
-            a->fg = rotationGauche(a->fg);
-            return rotationDroite(a);
-        }
-    }
-
-    if (delta < -1) {
-        if (hauteur(a->fd->fd) >= hauteur(a->fd->fg)) {
-            return rotationGauche(a);
-        } else {
-            a->fd = rotationDroite(a->fd);
-            return rotationGauche(a);
-        }
-    }
-    return a;
-}
-
-pArbre insertion(pArbre a, int id, long capacity, long consumption) {
-    if (a == NULL) {
-        return creerArbre(id, capacity, consumption);
-    }
     if (id < a->id) {
-        a->fg = insertion(a->fg, id, capacity, consumption);
+        a->fg = inserer(a->fg, id, code, cap, flux);
     } else if (id > a->id) {
-        a->fd = insertion(a->fd, id, capacity, consumption);
+        a->fd = inserer(a->fd, id, code, cap, flux);
     } else {
-        // ID existant : on somme la capacité et la consommation (Logique correcte)
-        a->capacity += capacity; // Attention: selon le sujet, la capacité est parfois fixe, mais pour la somme c'est ok
-        a->consumption += consumption;
+        // ID existant : on ajoute la consommation au cumul
+        a->conso += flux; 
         return a;
     }
 
-    a->height = max(hauteur(a->fg), hauteur(a->fd)) + 1;
-    return equilibrage(a);
+    // 2. Mise à jour de la hauteur
+    a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
+
+    // 3. Équilibrage AVL
+    int bal = equilibre(a);
+
+    // Cas Gauche-Gauche
+    if (bal > 1 && id < a->fg->id)
+        return rotationDroite(a);
+
+    // Cas Droite-Droite
+    if (bal < -1 && id > a->fd->id)
+        return rotationGauche(a);
+
+    // Cas Gauche-Droite
+    if (bal > 1 && id > a->fg->id)
+        return doubleRotationGD(a);
+
+    // Cas Droite-Gauche
+    if (bal < -1 && id < a->fd->id)
+        return doubleRotationDG(a);
+
+    return a;
 }
 
-// --- PARTIE AJOUTÉE (INTEGRATION DE LA CORRECTION) ---
-// Cette fonction manquait pour sortir les données vers le script .sh
+// --- Parcours et Sortie ---
 
-void parcoursInfixe(pArbre a) {
+void infixe(pStation a, FILE* fs) {
     if (a != NULL) {
-        parcoursInfixe(a->fg);
-        // Format de sortie standard : ID:CAPACITE:CONSOMMATION
-        printf("%d:%ld:%ld\n", a->id, a->capacity, a->consumption);
-        parcoursInfixe(a->fd);
+        infixe(a->fg, fs);
+        // Format de sortie demandé (ID:CAP:CONSO)
+        // Modifiez cette ligne si votre sujet demande un format différent (ex: ID;CAP;CONSO)
+        fprintf(fs, "%d:%ld:%ld\n", a->id, a->capacite, a->conso);
+        infixe(a->fd, fs);
     }
 }
 
+void liberer(pStation a) {
+    if (a != NULL) {
+        liberer(a->fg);
+        liberer(a->fd);
+        free(a);
+    }
+}
