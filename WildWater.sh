@@ -91,7 +91,7 @@ if [ -f "${MAKEFILE}" ]; then
 else
     # Fallback si pas de Makefile (plus lent car recompile tout)
     echo "Attention : Makefile introuvable."
-    gcc -o c-wire main.c file.c avl.c leaks.c
+    gcc -o c-wire main.c file.c avl.c leak.c
 fi
 
 if [ ! -x "${EXEC}" ]; then
@@ -128,7 +128,7 @@ if [ "$ACTION" == "histo" ]; then
         generer_graphique "tmp/max10.dat" "graphs/${OPTION}_max10.png" "$TITRE - 10 Max" "#B22222" "$DIV" "$UNITE"
         echo "Graphiques générés."
     fi
-elif [ "$ACTION" == "leaks" ]; then
+elif [ "$ACTION" == "leak" ]; then
     echo "Résultat dans 'stats.csv'."
 fi
 
