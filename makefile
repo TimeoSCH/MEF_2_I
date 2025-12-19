@@ -1,16 +1,14 @@
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -O3 -march=native
+
+CFLAGS = -std=c11 -Wall -Wextra -g
 EXEC = c-wire
 OBJ = main.o avl.o file.o leaks.o
 
-# Règle par défaut
 all: $(EXEC)
 
-# Édition de liens
 $(EXEC): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 
-# Compilation des objets
 main.o: main.c avl.h file.h leaks.h
 	$(CC) $(CFLAGS) -c main.c
 
@@ -23,6 +21,5 @@ file.o: file.c file.h avl.h
 leaks.o: leaks.c leaks.h
 	$(CC) $(CFLAGS) -c leaks.c
 
-# Nettoyage
 clean:
 	rm -f $(OBJ) $(EXEC)
