@@ -1,7 +1,6 @@
 #ifndef AVL_H
 #define AVL_H
 
-#include "avl.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
