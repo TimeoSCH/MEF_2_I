@@ -1,7 +1,6 @@
-#include "avl.h"
 #include <stdio.h>
 #include <stdlib.h>
-
+#include "avl.h"
 
 
 pArbre creerArbre(int id, long capacity, long consumption) {
