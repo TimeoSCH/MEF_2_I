@@ -1,3 +1,13 @@
+Si le traitement "real" prend trop de temps, c'est normal : il y a des millions de consommateurs dans le fichier, alors qu'il n'y a que quelques centaines de centrales pour max et src. Ton programme doit construire un arbre immense.
+
+Cependant, on peut accélérer le programme x10 en activant l'optimisation maximale du compilateur (-O3) et en utilisant une astuce de mémoire tampon.
+
+Voici les 2 étapes pour régler la lenteur :
+Étape 1 : Optimiser la lecture du fichier (file.c)
+
+La lecture ligne par ligne est lente. On va ajouter une ligne pour lire par gros blocs (Buffer). Copie ce code optimisé dans file.c.
+C
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "avl.h"
@@ -5,8 +15,7 @@
 
 #define MAX_LIGNE 2048
 
-// --- Fonctions utilitaires rapides ---
-
+// --- Fonctions utilitaires ---
 int estEgal(const char* s1, const char* s2) {
     int i = 0;
     while (s1[i] != '\0' && s2[i] != '\0') {
@@ -33,26 +42,27 @@ long chaineVersLong(const char* s) {
     return res;
 }
 
-// --- CHARGEMENT RAPIDE ---
+// --- CHARGEMENT OPTIMISÉ ---
 void charger(char* chemin, pStation* racine, char* mode) {
     FILE* fp = fopen(chemin, "r");
     if (fp == NULL) exit(1);
 
-    char ligne[MAX_LIGNE];
-    // Sauter l'entête
-    fgets(ligne, MAX_LIGNE, fp);
+    // --- ACCELERATION DISQUE (BUFFER) ---
+    // On lit par blocs de 16Ko au lieu de faire des aller-retours disque
+    char buffer[16384];
+    setvbuf(fp, buffer, _IOFBF, sizeof(buffer));
 
-    // Boucle de lecture
+    char ligne[MAX_LIGNE];
+    fgets(ligne, MAX_LIGNE, fp); // Sauter entête
+
     while (fgets(ligne, MAX_LIGNE, fp) != NULL) {
-        
         char cols[5][50]; 
         char tampon[50];  
         int idxLigne = 0, idxCol = 0, idxTampon = 0;
         
-        // Initialisation rapide
         for(int k=0; k<5; k++) cols[k][0] = '\0';
 
-        // Parsing manuel (Plus rapide que strtok)
+        // Parsing manuel
         while (ligne[idxLigne] != '\0' && idxCol < 5) {
             char c = ligne[idxLigne];
             if (c == ';' || c == '\n' || c == '\r') {
@@ -68,26 +78,22 @@ void charger(char* chemin, pStation* racine, char* mode) {
             idxLigne++;
         }
 
-        // Conversion
-        long val4 = chaineVersLong(cols[3]); // Capacité
-        long val5 = chaineVersLong(cols[4]); // Consommation
+        long val4 = chaineVersLong(cols[3]); 
+        long val5 = chaineVersLong(cols[4]); 
 
-        // --- FILTRAGE OPTIMISÉ ---
-
-        // MODE SRC : Centrales (Capacité > 0 et Pas de Conso)
-        if (estEgal(mode, "src")) {
+        // --- FILTRAGE RAPIDE ---
+        if (estEgal(mode, "real")) {
+            // Optimisation : On ne fait l'insertion que si c'est nécessaire
+            if (val5 > 0 && estEgal(cols[2], "-") == 0) {
+                 *racine = inserer(*racine, 0, cols[2], 0, val5);
+            }
+        }
+        else if (estEgal(mode, "src")) {
             if (val4 > 0 && val5 == 0) { 
                 if (estEgal(cols[0], "-") == 0) *racine = inserer(*racine, 0, cols[0], val4, 0);
                 else if (estEgal(cols[1], "-") == 0) *racine = inserer(*racine, 0, cols[1], val4, 0);
             }
         }
-        // MODE REAL : Consommateurs (Conso > 0)
-        else if (estEgal(mode, "real")) {
-            if (val5 > 0) {
-                if (estEgal(cols[2], "-") == 0) *racine = inserer(*racine, 0, cols[2], 0, val5);
-            }
-        }
-        // MODE MAX : Station HVA (Capacité > 0 et Col 1 existe)
         else if (estEgal(mode, "max")) {
             if (val4 > 0 && estEgal(cols[1], "-") == 0) {
                  *racine = inserer(*racine, 0, cols[1], val4, 0);
