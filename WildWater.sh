@@ -45,6 +45,7 @@ generer_graphique() {
 GNU
 }
 
+# 1. Compilation
 if [ ! -x "${EXEC}" ] ; then
     echo "Compilation en cours..."
     if [ ! -f "${MAKEFILE}" ]; then
@@ -66,36 +67,43 @@ if [ ! -f "${DATA_FILE}" ] ; then
     end_script 1
 fi
 
+# 2. Nettoyage
 rm -f graphs/*.png
 mkdir -p graphs tmp
 
 echo "=== Démarrage de la génération des 6 histogrammes ==="
 
+# 3. Boucle sur les 3 modes demandés
 for MODE in "max" "src" "real"; do
     case "${MODE}" in
-        "max")  SUJET="Capacité Usine (HVA)";;
-        "src")  SUJET="Volume Capté (Sources)";;
-        "real") SUJET="Volume Consommé (Utilisateurs)";;
+        "max")  SUJET="Volume max traitement usine (HVA)";;
+        "src")  SUJET="Volume total capté (Sources)";;
+        "real") SUJET="Volume total réellement traité";;
     esac
 
-    echo "Traitement : ${MODE}"
+    echo "Traitement : ${MODE}..."
 
+    # Appel du programme C (suppose qu'il génère 'stats.csv')
     "${EXEC}" "${DATA_FILE}" "histo" "${MODE}"
+    
     if [ $? -ne 0 ]; then
         echo "Erreur lors de l'exécution C pour ${MODE}"
         continue
     fi
     
     if [ -f "stats.csv" ]; then
+        # Tri numérique sur la 2ème colonne (Volume)
         tail -n +2 stats.csv | sort -t";" -k2,2n > tmp/sorted.tmp
 
-        # 50 plus faibles : couleur vert forêt (#228B22)
+        # --- Graphique 1 : Les 50 plus petites valeurs (Vert) ---
         head -n 50 tmp/sorted.tmp > tmp/min50.dat
         generer_graphique "tmp/min50.dat" "graphs/${MODE}_min50.png" "${SUJET} - 50 Plus Faibles" "#228B22"
 
-        # 10 plus forts : couleur rouge brique (#B22222)
+        # --- Graphique 2 : Les 10 plus grandes valeurs (Rouge) ---
         tail -n 10 tmp/sorted.tmp > tmp/max10.dat
         generer_graphique "tmp/max10.dat" "graphs/${MODE}_max10.png" "${SUJET} - 10 Plus Forts" "#B22222"
+    else
+        echo "Attention : Pas de fichier stats.csv généré pour ${MODE}"
     fi
 done
 
