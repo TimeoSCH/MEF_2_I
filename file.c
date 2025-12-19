@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include "avl.h"
 #include "file.h"
 
@@ -12,15 +11,6 @@ int estEgal(const char* s1, const char* s2) {
     return strcmp(s1, s2) == 0;
 }
 
-// Fonction pour nettoyer les résidus de fin de ligne (\r \n)
-void clean_line(char* s) {
-    size_t len = strlen(s);
-    while (len > 0 && (s[len-1] == '\n' || s[len-1] == '\r' || s[len-1] == ' ')) {
-        s[len-1] = '\0';
-        len--;
-    }
-}
-
 void charger(char* chemin, pStation* racine, char* mode) {
     FILE* fp = fopen(chemin, "r");
     if (fp == NULL) {
@@ -29,58 +19,62 @@ void charger(char* chemin, pStation* racine, char* mode) {
     }
 
     char ligne[MAX_LIGNE];
-    // Ignorer l'entête
+    // Sauter l'entête
     if (!fgets(ligne, MAX_LIGNE, fp)) {
         fclose(fp);
         return;
     }
 
     while (fgets(ligne, MAX_LIGNE, fp)) {
-        clean_line(ligne);
-        if (strlen(ligne) == 0) continue;
+        // Nettoyage fin de ligne
+        char *p = ligne;
+        while (*p) { if (*p == '\r' || *p == '\n') *p = '\0'; p++; }
 
-        char *cols[10]; // On prévoit jusqu'à 10 colonnes
+        char *cols[12]; 
         int col_count = 0;
-        char *ptr = ligne;
-        
-        // --- PARSING MANUEL ROBUSTE ---
-        cols[col_count++] = ptr;
-        while (*ptr) {
-            if (*ptr == ';') {
-                *ptr = '\0';
-                cols[col_count++] = ptr + 1;
-            }
-            ptr++;
-            if (col_count >= 10) break;
+        char *token = ligne;
+        char *next_token;
+
+        // Parsing manuel robuste pour gérer les champs vides (;;)
+        while (token != NULL && col_count < 12) {
+            next_token = strchr(token, ';');
+            if (next_token) *next_token = '\0';
+            cols[col_count++] = token;
+            if (next_token) token = next_token + 1;
+            else token = NULL;
         }
 
-        // Vérification du nombre de colonnes minimum (on attend au moins 5)
-        if (col_count < 5) continue;
-
-        // cols[0]: Power plant
-        // cols[1]: HVB station
-        // cols[2]: HVA station
-        // cols[3]: LV station  <-- C'est celle-ci pour le mode 'real'
-        // cols[4]: Capacity
-        // cols[5]: Load
+        // --- MAPPING DES COLONNES (Indices typiques) ---
+        // Indice 0: Power Plant
+        // Indice 1: HVB Station
+        // Indice 2: HVA Station
+        // Indice 3: LV Station  <-- ID pour le mode 'real'
+        // Indice 4: Capacity
+        // Indice 5: Load
+        // Indice 6: ...
 
         if (estEgal(mode, "real")) {
-            // Dans le mode real, l'identifiant de la station LV est souvent en colonne 3 (index 3)
-            // ou colonne 2 (index 2). Vérifions l'index 2 et 3.
-            char* id_str = cols[3]; // LV Station
-            long load = atol(cols[5]); // Load est souvent en colonne 5 ou 6
-
-            if (!estEgal(id_str, "-") && load > 0) {
-                int id = atoi(id_str);
-                *racine = inserer(*racine, id, id_str, 0, load);
+            // On vérifie si la colonne LV (3) n'est pas vide
+            if (col_count > 5 && !estEgal(cols[3], "-") && strlen(cols[3]) > 0) {
+                int id = atoi(cols[3]);
+                long load = atol(cols[5]);
+                if (load > 0) {
+                    *racine = inserer(*racine, id, cols[3], 0, load);
+                }
             }
         } 
         else if (estEgal(mode, "max") || estEgal(mode, "src")) {
-            char* id_str = cols[1]; // HVA ou HVB
-            long cap = atol(cols[4]);
-            if (!estEgal(id_str, "-") && cap > 0) {
+            // Pour HVA ou HVB, on regarde les colonnes 1 ou 2
+            char* id_str = "-";
+            if (!estEgal(cols[2], "-")) id_str = cols[2];
+            else if (!estEgal(cols[1], "-")) id_str = cols[1];
+
+            if (!estEgal(id_str, "-")) {
                 int id = atoi(id_str);
-                *racine = inserer(*racine, id, id_str, cap, 0);
+                long cap = atol(cols[4]);
+                if (cap > 0) {
+                    *racine = inserer(*racine, id, id_str, cap, 0);
+                }
             }
         }
     }
