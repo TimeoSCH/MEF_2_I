@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "avl.h"
 #include "file.h"
 
@@ -7,85 +8,61 @@
 
 // --- Fonctions utilitaires internes ---
 
-// Remplace strcmp : Renvoie 1 si les chaines sont identiques, 0 sinon
-int estEgal(const char* s1, const char* s2) {
-    int i = 0;
-    while (s1[i] != '\0' && s2[i] != '\0') {
-        if (s1[i] != s2[i]) return 0; // Différent
-        i++;
-    }
-    return (s1[i] == '\0' && s2[i] == '\0');
+// Renvoie 1 si les chaines sont identiques, 0 sinon
+int estEgalFile(const char* s1, const char* s2) {
+    return strcmp(s1, s2) == 0;
 }
 
-// Remplace strcpy : Copie src dans dest
+// Copie src dans dest
 void copierChaine(char* dest, const char* src) {
-    int i = 0;
-    while (src[i] != '\0') {
-        dest[i] = src[i];
-        i++;
-    }
-    dest[i] = '\0';
+    strcpy(dest, src);
 }
 
-// Remplace atol : Convertit une chaine en entier long
+// Convertit une chaine en entier long
 long chaineVersLong(const char* s) {
-    long res = 0;
-    int i = 0;
-    
-    // Gestion du cas vide ou tiret
-    if (s[0] == '\0' || s[0] == '-') return 0;
-
-    while (s[i] >= '0' && s[i] <= '9') {
-        res = res * 10 + (s[i] - '0');
-        i++;
-    }
-    return res;
+    return atol(s);
 }
 
 // --- FONCTION PRINCIPALE : CHARGEMENT ---
-// Lit le fichier CSV et remplit l'arbre AVL selon le mode (max, src, real)
 void charger(char* chemin, pStation* racine, char* mode) {
     FILE* fp = fopen(chemin, "r");
     if (fp == NULL) {
-        printf("Erreur : impossible d'ouvrir le fichier %s\n", chemin);
+        perror("Erreur ouverture fichier");
         exit(1);
     }
 
-    // Optimisation : Buffer de lecture (16 Ko) pour accélérer les accès disque
     char buffer[16384];
     setvbuf(fp, buffer, _IOFBF, sizeof(buffer));
 
     char ligne[MAX_LIGNE];
     
-    // Lire la première ligne (entête) pour l'ignorer
+    // Ignorer l'entête
     fgets(ligne, MAX_LIGNE, fp);
 
-    // Lecture ligne par ligne
     while (fgets(ligne, MAX_LIGNE, fp) != NULL) {
         
-        char cols[5][50]; // Tableau pour stocker les 5 colonnes
-        char tampon[50];  // Tampon temporaire pour lire un mot
+        char cols[5][50]; 
+        char tampon[50];  
         
-        int idxLigne = 0; // Position dans la ligne brute
-        int idxCol = 0;   // Quelle colonne on remplit (0 à 4)
-        int idxTampon = 0;// Position dans le mot en cours
+        int idxLigne = 0; 
+        int idxCol = 0;   
+        int idxTampon = 0;
 
-        // Initialisation des colonnes à vide
+        // Init
         for(int k=0; k<5; k++) cols[k][0] = '\0';
 
-        // PARSING MANUEL (Découpage par point-virgule)
+        // Parsing manuel (CSV avec ;)
         while (ligne[idxLigne] != '\0' && idxCol < 5) {
             char c = ligne[idxLigne];
 
-            // Séparateur ; ou fin de ligne
             if (c == ';' || c == '\n' || c == '\r') {
-                tampon[idxTampon] = '\0'; // Finir la chaine
+                tampon[idxTampon] = '\0';
                 
                 if (idxTampon == 0) copierChaine(cols[idxCol], "-");
                 else copierChaine(cols[idxCol], tampon);
 
-                idxCol++;       // Colonne suivante
-                idxTampon = 0;  // Reset tampon
+                idxCol++;
+                idxTampon = 0;
             } 
             else {
                 tampon[idxTampon] = c;
@@ -94,39 +71,42 @@ void charger(char* chemin, pStation* racine, char* mode) {
             idxLigne++;
         }
 
-        // Conversion des valeurs numériques
-        // Col 3 = Capacité (Production)
-        // Col 4 = Consommation (Load)
-        long val4 = chaineVersLong(cols[3]);
-        long val5 = chaineVersLong(cols[4]);
+        // Col 3 = Capacité, Col 4 = Conso
+        long val4 = chaineVersLong(cols[3]); // Capacité
+        long val5 = chaineVersLong(cols[4]); // Consommation
 
-        // LOGIQUE DE FILTRAGE SELON LE MODE
+        // --- LOGIQUE CORRIGÉE ---
 
-        // 1. Mode REAL (Consommateurs)
-        if (estEgal(mode, "real")) {
-            // On garde si conso > 0 et qu'il y a un ID consommateur (col 2)
-            if (val5 > 0 && estEgal(cols[2], "-") == 0) {
-                *racine = inserer(*racine, 0, cols[2], 0, val5);
+        // 1. Mode REAL (Consommateurs - LV - Col 2)
+        if (estEgalFile(mode, "real")) {
+            // Si conso > 0 et identifiant LV existe
+            if (val5 > 0 && !estEgalFile(cols[2], "-")) {
+                int id = (int)chaineVersLong(cols[2]); // <--- CONVERSION ICI
+                *racine = inserer(*racine, id, cols[2], 0, val5);
             }
         }
-        // 2. Mode SRC (Sources : Centrales production)
-        else if (estEgal(mode, "src")) {
-            // Une source a une Capacité mais pas de Conso directe sur la ligne de prod
+        // 2. Mode SRC (Centrales - HVB/Col 0 ou HVA/Col 1)
+        else if (estEgalFile(mode, "src")) {
+            // Sources : Capacité > 0, pas de conso directe
             if (val4 > 0 && val5 == 0) {
-                // Peut être HVB (Col 0) ou HVA (Col 1)
-                if (estEgal(cols[0], "-") == 0) {
-                    *racine = inserer(*racine, 0, cols[0], val4, 0);
+                if (!estEgalFile(cols[0], "-")) {
+                    int id = (int)chaineVersLong(cols[0]); // <--- CONVERSION ICI
+                    *racine = inserer(*racine, id, cols[0], val4, 0);
                 }
-                else if (estEgal(cols[1], "-") == 0) {
-                    *racine = inserer(*racine, 0, cols[1], val4, 0);
+                else if (!estEgalFile(cols[1], "-")) {
+                    int id = (int)chaineVersLong(cols[1]); // <--- CONVERSION ICI
+                    *racine = inserer(*racine, id, cols[1], val4, 0);
                 }
             }
         }
-        // 3. Mode MAX (Usines HVA)
-        else if (estEgal(mode, "max")) {
-            // Station HVA (Col 1) avec capacité
-            if (val4 > 0 && estEgal(cols[1], "-") == 0) {
-                *racine = inserer(*racine, 0, cols[1], val4, 0);
+        // 3. Mode MAX (Usines - HVA - Col 1)
+        else if (estEgalFile(mode, "max")) {
+            // HVA saturées (Capacity > 0 et HVA existe)
+            if (val4 > 0 && !estEgalFile(cols[1], "-")) {
+                int id = (int)chaineVersLong(cols[1]); // <--- CONVERSION ICI
+                // Note : Pour "max", on stocke la capacité comme "conso" pour le calcul ? 
+                // Ou on stocke juste la capacité. Ici je stocke capacité.
+                *racine = inserer(*racine, id, cols[1], val4, 0);
             }
         }
     }
