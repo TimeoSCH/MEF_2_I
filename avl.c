@@ -1,128 +1,88 @@
 #include "avl.h"
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 
-// --- Fonctions utilitaires ---
+int max(int a, int b) { return (a > b) ? a : b; }
+int hauteur(pStation a) { return (a == NULL) ? 0 : a->h; }
+int equilibre(pStation a) { return (a == NULL) ? 0 : hauteur(a->fg) - hauteur(a->fd); }
 
-int max(int a, int b) {
-    return (a > b) ? a : b;
-}
-
-int hauteur(pStation a) {
-    if (a == NULL) return 0;
-    return a->h;
-}
-
-int equilibre(pStation a) {
-    if (a == NULL) return 0;
-    return hauteur(a->fg) - hauteur(a->fd);
-}
-
-// --- Création ---
-
-pStation creerStation(int id, char* code, long cap, long conso_initiale) {
-    pStation new = malloc(sizeof(Station));
-    if (new == NULL) {
-        fprintf(stderr, "Erreur d'allocation mémoire\n");
-        exit(1);
-    }
-    new->id = id;
-    
-    // Copie sécurisée de l'identifiant texte
-    if (code != NULL) {
-        strncpy(new->id_str, code, 49);
-        new->id_str[49] = '\0';
-    } else {
-        new->id_str[0] = '\0';
-    }
-
-    new->capacite = cap;
-    new->conso = conso_initiale; 
-    new->h = 1;
-    new->fg = NULL;
-    new->fd = NULL;
-    return new;
-}
-
-// --- Rotations ---
-
+// ... (Gardez vos fonctions de rotation telles quelles, elles sont correctes) ...
+// Je remets juste rotationDroite pour l'exemple, garde les autres !
 pStation rotationDroite(pStation y) {
     pStation x = y->fg;
     pStation T2 = x->fd;
-
     x->fd = y;
     y->fg = T2;
-
     y->h = max(hauteur(y->fg), hauteur(y->fd)) + 1;
     x->h = max(hauteur(x->fg), hauteur(x->fd)) + 1;
-
     return x;
 }
-
 pStation rotationGauche(pStation x) {
     pStation y = x->fd;
     pStation T2 = y->fg;
-
     y->fg = x;
     x->fd = T2;
-
     x->h = max(hauteur(x->fg), hauteur(x->fd)) + 1;
     y->h = max(hauteur(y->fg), hauteur(y->fd)) + 1;
-
     return y;
 }
-
 pStation doubleRotationGD(pStation a) {
     a->fg = rotationGauche(a->fg);
     return rotationDroite(a);
 }
-
 pStation doubleRotationDG(pStation a) {
     a->fd = rotationDroite(a->fd);
     return rotationGauche(a);
 }
 
-// --- Insertion ---
+// CORRECTION MAJEURE ICI
+pStation creerStation(char* code, long cap, long conso) {
+    pStation p = malloc(sizeof(Station));
+    if (p == NULL) exit(1);
+    strcpy(p->id_str, code); // Copie du texte
+    p->capacite = cap;
+    p->conso = conso;
+    p->h = 1;
+    p->fg = NULL;
+    p->fd = NULL;
+    return p;
+}
 
-pStation inserer(pStation a, int id, char* code, long cap, long flux) {
-    // 1. Insertion normale
+pStation inserer(pStation a, char* code, long cap, long flux) {
     if (a == NULL) {
-        // Si le nœud n'existe pas, on le crée avec le flux actuel comme consommation
-        return creerStation(id, code, cap, flux);
+        return creerStation(code, cap, flux);
     }
 
-    if (id < a->id) {
-        a->fg = inserer(a->fg, id, code, cap, flux);
-    } else if (id > a->id) {
-        a->fd = inserer(a->fd, id, code, cap, flux);
+    // Utilisation de STRCMP pour le tri alphabétique/numérique textuel
+    int cmp = strcmp(code, a->id_str);
+
+    if (cmp < 0) {
+        a->fg = inserer(a->fg, code, cap, flux);
+    } else if (cmp > 0) {
+        a->fd = inserer(a->fd, code, cap, flux);
     } else {
-        // ID déjà présent : on cumule la consommation
+        // ID déjà présent : on cumule la capacité et la consommation
+        a->capacite += cap; // Important pour les modes HVA
         a->conso += flux;
         return a;
     }
 
-    // 2. Mise à jour hauteur
+    // Mise à jour hauteur et équilibrage (inchangé)
     a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
-
-    // 3. Équilibrage
     int bal = equilibre(a);
 
-    if (bal > 1 && id < a->fg->id) return rotationDroite(a);
-    if (bal < -1 && id > a->fd->id) return rotationGauche(a);
-    if (bal > 1 && id > a->fg->id) return doubleRotationGD(a);
-    if (bal < -1 && id < a->fd->id) return doubleRotationDG(a);
+    if (bal > 1 && strcmp(code, a->fg->id_str) < 0) return rotationDroite(a);
+    if (bal < -1 && strcmp(code, a->fd->id_str) > 0) return rotationGauche(a);
+    if (bal > 1 && strcmp(code, a->fg->id_str) > 0) return doubleRotationGD(a);
+    if (bal < -1 && strcmp(code, a->fd->id_str) < 0) return doubleRotationDG(a);
 
     return a;
 }
 
-// --- Parcours et Libération ---
-
 void infixe(pStation a, FILE* fs) {
     if (a != NULL) {
         infixe(a->fg, fs);
-        // Format de sortie ID:CAP:CONSO (adaptez le séparateur ':' ou ';' selon votre sujet)
-        fprintf(fs, "%d:%ld:%ld\n", a->id, a->capacite, a->conso);
+        // Format demandé par le sujet : ID:CAP:CONSO
+        // Attention au format : %s pour string, %ld pour long
+        fprintf(fs, "%s;%ld;%ld\n", a->id_str, a->capacite, a->conso);
         infixe(a->fd, fs);
     }
 }
