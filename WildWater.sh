@@ -89,11 +89,13 @@ for MODE in "max" "src" "real"; do
     if [ -f "stats.csv" ]; then
         tail -n +2 stats.csv | sort -t";" -k2,2n > tmp/sorted.tmp
 
+        # 50 plus faibles : couleur vert forêt (#228B22)
         head -n 50 tmp/sorted.tmp > tmp/min50.dat
-        generer_graphique "tmp/min50.dat" "graphs/${MODE}_min50.png" "${SUJET} - 50 Plus Faibles" "forest-green"
+        generer_graphique "tmp/min50.dat" "graphs/${MODE}_min50.png" "${SUJET} - 50 Plus Faibles" "#228B22"
 
+        # 10 plus forts : couleur rouge brique (#B22222)
         tail -n 10 tmp/sorted.tmp > tmp/max10.dat
-        generer_graphique "tmp/max10.dat" "graphs/${MODE}_max10.png" "${SUJET} - 10 Plus Forts" "firebrick"
+        generer_graphique "tmp/max10.dat" "graphs/${MODE}_max10.png" "${SUJET} - 10 Plus Forts" "#B22222"
     fi
 done
 
