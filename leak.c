@@ -59,8 +59,12 @@ void traiter_fuites(char* chemin, char* station_id, FILE* f_out) {
                 long val_cap = atol(col_cap);
                 long val_conso = atol(col_conso);
 
-                if (val_cap > 0) capacite_usine += val_cap;
-                if (val_conso > 0) total_conso_clients += val_conso;
+                if (val_cap > 0){
+                    capacite_usine += val_cap;
+                }
+                if (val_conso > 0){
+                    total_conso_clients += val_conso;
+                }
             }
         }
     }
