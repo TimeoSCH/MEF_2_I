@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Démarrage du chronomètre (secondes + nanosecondes)
+# Démarrage du chronomètre 
 START_TIME=$(date +%s%3N)
 EXEC="./c-wire"
 MAKEFILE="Makefile"
