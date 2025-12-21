@@ -1,7 +1,5 @@
 #include "avl.h"
 
-// --- Macros pour les formules mathématiques ---
-// min3 et max3 pour les calculs de pivot
 #define min3(a, b, c) min(a, min(b, c))
 #define max3(a, b, c) max(a, max(b, c))
 
@@ -114,9 +112,9 @@ pStation inserer(pStation a, char* code, long cap, long flux) {
 
 void infixe(pStation a, FILE* fs) {
     if (a != NULL) {
-        infixe(a->fg, fs);
-        fprintf(fs, "%s;%ld;%ld\n", a->id_str, a->capacite, a->conso);
         infixe(a->fd, fs);
+        fprintf(fs, "%s;%ld;%ld\n", a->id_str, a->capacite, a->conso);
+        infixe(a->fg, fs);
     }
 }
 
