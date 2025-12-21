@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct Station {
-    char id_str[50];    // On garde UNIQUEMENT l'ID textuel
+typedef struct Station {   //structure d'un AVL
+    char id_str[50];    
     long capacite;
     long conso;
     int h;
@@ -28,7 +28,6 @@ pStation doubleRotationGD(pStation a);
 pStation doubleRotationDG(pStation a);
 
 // Fonctions principales
-// CORRECTION : On retire 'int id' et 'char* code' pour ne garder que 'char* code'
 pStation creerStation(char* code, long cap, long conso);
 pStation inserer(pStation a, char* code, long cap, long flux);
 
