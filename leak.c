@@ -7,22 +7,23 @@
 #define MAX_LIGNE 2048
 #define MAX_ID 100
 
+// Liste chaînée représentant les arêtes sortantes d'un nœud 
 typedef struct ListeEnfants {
     struct NoeudAVL* station; 
     double pourcentage_fuite; 
     struct ListeEnfants* suivant;
 } ListeEnfants;
 
+// Structure principale de l'avl
 typedef struct NoeudAVL {
     char id[MAX_ID];
     long capacite;            
-    ListeEnfants* enfants;    
-    int nb_enfants;          
-    int hauteur;             
+    ListeEnfants* enfants;   
+    int nb_enfants;           
+    int hauteur;            
     struct NoeudAVL* gauche;
     struct NoeudAVL* droite;
 } NoeudAVL;
-
 
 int hauteur(NoeudAVL* n) {
     return (n == NULL) ? 0 : n->hauteur;
@@ -32,6 +33,7 @@ int max_int(int a, int b) {
     return (a > b) ? a : b;
 }
 
+// Fonction d'initialisation d'un nœud vide 
 NoeudAVL* creer_noeud(char* id) {
     NoeudAVL* n = (NoeudAVL*)malloc(sizeof(NoeudAVL));
     if (!n) { perror("Malloc"); exit(1); }
@@ -46,6 +48,7 @@ NoeudAVL* creer_noeud(char* id) {
     return n;
 }
 
+// Rotations standard AVL (Droite et Gauche) pour maintenir l'arbre équilibré
 NoeudAVL* rotation_droite(NoeudAVL* y) {
     NoeudAVL* x = y->gauche;
     NoeudAVL* T2 = x->droite;
@@ -70,6 +73,7 @@ int get_equilibre(NoeudAVL* n) {
     return (n == NULL) ? 0 : hauteur(n->gauche) - hauteur(n->droite);
 }
 
+// Fonction de recherche d'un ID dans l'AVL.
 NoeudAVL* chercher_ou_creer(NoeudAVL** racine, char* id) {
     if (*racine == NULL) {
         *racine = creer_noeud(id);
@@ -84,9 +88,10 @@ NoeudAVL* chercher_ou_creer(NoeudAVL** racine, char* id) {
     } else if (cmp > 0) {
         resultat = chercher_ou_creer(&((*racine)->droite), id);
     } else {
-        return *racine; // Trouvé
+        return *racine; 
     }
 
+    // Rééquilibrage après insertion
     (*racine)->hauteur = 1 + max_int(hauteur((*racine)->gauche), hauteur((*racine)->droite));
     int balance = get_equilibre(*racine);
 
@@ -105,6 +110,7 @@ NoeudAVL* chercher_ou_creer(NoeudAVL** racine, char* id) {
     return resultat;
 }
 
+// Fonction de recherche 
 NoeudAVL* trouver_noeud(NoeudAVL* racine, char* id) {
     if (racine == NULL) return NULL;
     int cmp = strcmp(id, racine->id);
@@ -113,7 +119,7 @@ NoeudAVL* trouver_noeud(NoeudAVL* racine, char* id) {
     else return racine;
 }
 
-
+// Fonction d'ajout d'un fils
 void ajouter_enfant(NoeudAVL* parent, NoeudAVL* enfant, double pourcentage) {
     ListeEnfants* current = parent->enfants;
     while(current != NULL) {
@@ -122,20 +128,19 @@ void ajouter_enfant(NoeudAVL* parent, NoeudAVL* enfant, double pourcentage) {
     }
 
     ListeEnfants* nouv = (ListeEnfants*)malloc(sizeof(ListeEnfants));
-    if (!nouv) { perror("Malloc Liste"); exit(1); }
-    
+    if (!nouv) { perror("Malloc Liste"); exit(1); } 
     nouv->station = enfant;
     nouv->pourcentage_fuite = pourcentage;
-    nouv->suivant = parent->enfants;
+    nouv->suivant = parent->enfants; 
     parent->enfants = nouv;
     parent->nb_enfants++;
 }
 
+// Fonction de calcul des fuites
 double calculer_fuites_rec(NoeudAVL* noeud, double volume_entrant) {
     if (noeud == NULL || volume_entrant <= 0 || noeud->nb_enfants == 0) {
-        return 0.0;
+        return 0.0; 
     }
-    
     double volume_par_troncon = volume_entrant / noeud->nb_enfants;
     double total_fuites = 0.0;
 
@@ -144,12 +149,14 @@ double calculer_fuites_rec(NoeudAVL* noeud, double volume_entrant) {
         double fuite_troncon = volume_par_troncon * (cour->pourcentage_fuite / 100.0);
         double volume_restant = volume_par_troncon - fuite_troncon;
         total_fuites += fuite_troncon + calculer_fuites_rec(cour->station, volume_restant);
+        
         cour = cour->suivant;
     }
 
     return total_fuites;
 }
 
+// Libération complète : Arbre AVL + Listes chaînées
 void liberer_avl_et_graphe(NoeudAVL* racine) {
     if (racine == NULL) return;
     
@@ -165,7 +172,7 @@ void liberer_avl_et_graphe(NoeudAVL* racine) {
     free(racine);
 }
 
-
+// Fonction principale du module "leaks"
 void traiter_fuites(char* chemin, char* station_id, FILE* f_out) {
     FILE* fp = fopen(chemin, "r");
     if (fp == NULL) {
@@ -173,13 +180,15 @@ void traiter_fuites(char* chemin, char* station_id, FILE* f_out) {
         exit(1);
     }
 
-    NoeudAVL* racine_avl = NULL;
+    NoeudAVL* racine_avl = NULL; 
     char ligne[MAX_LIGNE];
     
+    // Lecture ligne par ligne
     while (fgets(ligne, MAX_LIGNE, fp) != NULL) {
         ligne[strcspn(ligne, "\r\n")] = 0;
         if (strlen(ligne) == 0) continue;
 
+        // Parsing manuel pour gérer les champs vides 
         char *ptr = ligne;
         char *cols[6] = {NULL}; 
         int i = 0;
@@ -212,21 +221,21 @@ void traiter_fuites(char* chemin, char* station_id, FILE* f_out) {
             else if (amont_existe && aval_existe) {
                 NoeudAVL* u_amont = chercher_ou_creer(&racine_avl, id_amont);
                 NoeudAVL* u_aval = chercher_ou_creer(&racine_avl, id_aval);
-                
                 double pct = (strcmp(str_fuite, "-") != 0) ? atof(str_fuite) : 0.0;
-                
                 ajouter_enfant(u_amont, u_aval, pct);
             }
         }
     }
     fclose(fp);
+    // Recherche de l'usine demandée 
     NoeudAVL* depart = trouver_noeud(racine_avl, station_id);
-
     if (depart == NULL) {
         fprintf(f_out, "%s;-1\n", station_id); 
     } else {
+        // Lancement du calcul 
         double fuites_totales = calculer_fuites_rec(depart, (double)depart->capacite);
         fprintf(f_out, "%s;%f\n", station_id, fuites_totales);
     }
+    // Nettoyage final
     liberer_avl_et_graphe(racine_avl);
 }
