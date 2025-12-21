@@ -1,22 +1,18 @@
 #!/bin/bash
 
-# --- 1. Démarrage Chronomètre ---
 START_TIME=$(date +%s)
 
-# --- Configuration ---
 EXEC="./c-wire"
 DEFAULT_DATA="water.dat"
 MAKEFILE="Makefile"
 DATA_FILE="$DEFAULT_DATA"
 
-# --- Fonction d'affichage de la durée ---
 afficher_duree() {
     END_TIME=$(date +%s)
     DURATION=$((END_TIME - START_TIME))
     echo "Durée totale du traitement : ${DURATION} secondes."
 }
 
-# --- Fonction d'aide ---
 usage() {
     echo "Usage incorrect."
     echo "Commandes valides :"
@@ -28,7 +24,6 @@ usage() {
     exit 1
 }
 
-# --- Fonction graphique ---
 generer_graphique() {
     local input="$1"; local output="$2"; local titre="$3"
     local color="$4"; local diviseur="$5"; local unite="$6"
@@ -57,7 +52,6 @@ generer_graphique() {
 GNU
 }
 
-# --- 2. Vérification Arguments ---
 if [ "$1" == "-h" ]; then usage; fi
 
 if [ -f "$1" ] && [ "$#" -eq 3 ]; then
@@ -99,17 +93,15 @@ if [ ! -x "${EXEC}" ]; then
     afficher_duree; exit 1
 fi
 
-# --- 4. Exécution ---
 echo "Lancement : $ACTION $OPTION"
 rm -f stats.csv
 
-"${EXEC}" "${DATA_FILE}" "${ACTION}" "${OPTION}"
+"${EXEC}" "${DATA_FILE}" "${ACTION}" "${OPTION}" > stats.csv
 if [ $? -ne 0 ]; then
     echo "Erreur lors de l'exécution du C."
     afficher_duree; exit 1
 fi
 
-# --- 5. Post-Traitement ---
 if [ "$ACTION" == "histo" ]; then
     if [ ! -s "stats.csv" ]; then
         echo "Avertissement : Fichier vide."
