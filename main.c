@@ -20,10 +20,10 @@ int main(int argc, char** argv) {
 
     if (estEgal(commande, "histo")) {
         
-        if (estEgal(mode, "max"){
+        if (estEgal(mode, "max")){
             fprintf(f_out, "Station;Capacite;Consommation\n");
         }
-        else if (estEgal(mode, "real"){
+        else if (estEgal(mode, "real")){
             fprintf(f_out, "Station;Capacite;Consommation\n");
         }
         else{
