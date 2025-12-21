@@ -3,7 +3,7 @@
 #define min3(a, b, c) min(a, min(b, c))
 #define max3(a, b, c) max(a, max(b, c))
 
-pStation rotationGauche(pStation a) {
+pStation rotationGauche(pStation a) {              //fonction rotation simple gauche
     pStation pivot = a->fd;
     int eq_a = a->equilibre;
     int eq_p = pivot->equilibre;
@@ -15,7 +15,7 @@ pStation rotationGauche(pStation a) {
     return pivot;
 }
 
-pStation rotationDroite(pStation a) {
+pStation rotationDroite(pStation a) {              //fonction rotation simple droite
     pStation pivot = a->fg;
     int eq_a = a->equilibre;
     int eq_p = pivot->equilibre;
@@ -27,17 +27,17 @@ pStation rotationDroite(pStation a) {
     return pivot;
 }
 
-pStation doubleRotationGD(pStation a) {
+pStation doubleRotationGD(pStation a) {              //fonction double rotation gauche
     a->fg = rotationGauche(a->fg);
     return rotationDroite(a);
 }
 
-pStation doubleRotationDG(pStation a) {
+pStation doubleRotationDG(pStation a) {              //fonction double rotation droite
     a->fd = rotationDroite(a->fd);
     return rotationGauche(a);
 }
 
-pStation creerStation(char* code, long cap, long conso) {
+pStation creerStation(char* code, long cap, long conso) {              //fonction double rotation gauche
     pStation p = malloc(sizeof(Station));
     if (p == NULL) exit(1);
     
@@ -110,7 +110,7 @@ pStation inserer(pStation a, char* code, long cap, long flux) {
     return inserer_interne(a, code, cap, flux, &h);
 }
 
-void infixe(pStation a, FILE* fs) {
+void infixe(pStation a, FILE* fs) {                       //fonction parcour dans l ordre
     if (a != NULL) {
         infixe(a->fd, fs);
         fprintf(fs, "%s;%ld;%ld\n", a->id_str, a->capacite, a->conso);
