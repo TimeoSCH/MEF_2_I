@@ -3,7 +3,8 @@
 #define min3(a, b, c) min(a, min(b, c))
 #define max3(a, b, c) max(a, max(b, c))
 
-pStation rotationGauche(pStation a) {              //fonction rotation simple gauche
+//rotation simple gauche
+pStation rotationGauche(pStation a) {
     pStation pivot = a->fd;
     int eq_a = a->equilibre;
     int eq_p = pivot->equilibre;
@@ -15,29 +16,33 @@ pStation rotationGauche(pStation a) {              //fonction rotation simple ga
     return pivot;
 }
 
-pStation rotationDroite(pStation a) {              //fonction rotation simple droite
+// rotation simple droite.
+pStation rotationDroite(pStation a) {
     pStation pivot = a->fg;
     int eq_a = a->equilibre;
     int eq_p = pivot->equilibre;
     a->fg = pivot->fd;
-    pivot->fd = a;
+    pivot->fd = a;  
     a->equilibre = eq_a - min(eq_p, 0) + 1;
     pivot->equilibre = max3(eq_a + 2, eq_a + eq_p + 2, eq_p + 1);
 
     return pivot;
 }
 
-pStation doubleRotationGD(pStation a) {              //fonction double rotation gauche
-    a->fg = rotationGauche(a->fg);
-    return rotationDroite(a);
+/// Fonction double rotation droite.
+pStation doubleRotationD(pStation a) {
+    a->fg = rotationGauche(a->fg); 
+    return rotationDroite(a);      
 }
 
-pStation doubleRotationDG(pStation a) {              //fonction double rotation droite
-    a->fd = rotationDroite(a->fd);
-    return rotationGauche(a);
+//fonction double rotation gauche
+pStation doubleRotationG(pStation a) {
+    a->fd = rotationDroite(a->fd); 
+    return rotationGauche(a);      
 }
 
-pStation creerStation(char* code, long cap, long conso) {              //fonction double rotation gauche
+// Alloue et initialise une nouvelle station
+pStation creerStation(char* code, long cap, long conso) {
     pStation p = malloc(sizeof(Station));
     if (p == NULL) exit(1);
     
@@ -51,6 +56,7 @@ pStation creerStation(char* code, long cap, long conso) {              //fonctio
     return p;
 }
 
+// Fonction d'insertion
 pStation inserer_interne(pStation a, char* code, long cap, long flux, int* h) {
     if (a == NULL) {
         *h = 1; 
@@ -60,6 +66,7 @@ pStation inserer_interne(pStation a, char* code, long cap, long flux, int* h) {
     int cmp = strcmp(code, a->id_str);
 
     if (cmp < 0) {
+        // Insertion dans le sous-arbre GAUCHE
         a->fg = inserer_interne(a->fg, code, cap, flux, h);
         if (*h != 0) { 
             a->equilibre--; 
@@ -79,6 +86,7 @@ pStation inserer_interne(pStation a, char* code, long cap, long flux, int* h) {
         }
     } 
     else if (cmp > 0) {
+        // Insertion dans le sous-arbre droit
         a->fd = inserer_interne(a->fd, code, cap, flux, h);
         
         if (*h != 0) { 
@@ -87,7 +95,7 @@ pStation inserer_interne(pStation a, char* code, long cap, long flux, int* h) {
                 *h = 0;
             }else if (a->equilibre == 1) {
                 *h = 1;
-            }else { // a->equilibre == 2
+            }else { // Cas critique (+2)
                 if (a->fd->equilibre == -1) {
                     a = doubleRotationDG(a); 
                 }else {
@@ -97,6 +105,7 @@ pStation inserer_interne(pStation a, char* code, long cap, long flux, int* h) {
             }
         }
     }else {
+        // Si le nœud existe déjà, on met à jour les données
         a->capacite += cap;
         a->conso += flux;
         *h = 0; 
@@ -105,19 +114,22 @@ pStation inserer_interne(pStation a, char* code, long cap, long flux, int* h) {
     return a;
 }
 
+// Appel depuis le main
 pStation inserer(pStation a, char* code, long cap, long flux) {
     int h = 0; 
     return inserer_interne(a, code, cap, flux, &h);
 }
 
-void infixe(pStation a, FILE* fs) {                       //fonction parcour dans l ordre
+// Tri par ordre décroissant
+void infixe(pStation a, FILE* fs) {     
     if (a != NULL) {
-        infixe(a->fd, fs);
+        infixe(a->fd, fs); 
         fprintf(fs, "%s;%ld;%ld\n", a->id_str, a->capacite, a->conso);
-        infixe(a->fg, fs);
+        infixe(a->fg, fs); 
     }
 }
 
+// Libération récursive de la mémoire
 void liberer(pStation a) {
     if (a != NULL) {
         liberer(a->fg);
