@@ -26,7 +26,11 @@ void charger(char* chemin, pStation* racine, char* mode) {
 
     while (fgets(ligne, MAX_LIGNE, fp)) {
         char *p = ligne;
-        while (*p) { if (*p == '\r' || *p == '\n') *p = '\0'; p++; }
+        while (*p) { 
+            if (*p == '\r' || *p == '\n'){
+                *p = '\0'; p++;
+            }
+        }
 
         char *cols[12]; 
         int col_count = 0;
@@ -52,8 +56,12 @@ void charger(char* chemin, pStation* racine, char* mode) {
         } 
         else if (estEgal(mode, "max") || estEgal(mode, "hva") || estEgal(mode, "hvb")) {
             char* id_str = "-";
-            if (col_count > 2 && !estEgal(cols[2], "-")) id_str = cols[2];
-            else if (col_count > 1 && !estEgal(cols[1], "-")) id_str = cols[1];
+            if (col_count > 2 && !estEgal(cols[2], "-")){
+                id_str = cols[2];
+            }
+            else if (col_count > 1 && !estEgal(cols[1], "-")){
+                id_str = cols[1];
+            }
 
             if (!estEgal(id_str, "-")) {
                 int id = atoi(id_str);
