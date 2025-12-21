@@ -1,10 +1,11 @@
 #!/bin/bash
 
+# Démarrage du chronomètre (secondes + nanosecondes)
 START_TIME=$(date +%s%3N)
 EXEC="./c-wire"
 MAKEFILE="Makefile"
 
-
+# Fonctions utilitaires
 afficher_aide() {
     echo "Usage :"
     echo "  $0 <fichier.dat> histo <max|src|real>"
@@ -18,19 +19,19 @@ fin_traitement() {
     DURATION=$((END_TIME - START_TIME))
     
     if [ "$DURATION" -lt 0 ]; then
-        echo "Durée totale : < 1 seconde (système sans %N)"
+        echo "Durée totale : < 1 seconde"
     else
         echo "Durée totale du traitement : ${DURATION} ms"
     fi
 }
 
-
+# Vérification des arguments
 if [ "$1" == "-h" ]; then
     afficher_aide
 fi
 
 if [ "$#" -ne 3 ]; then
-    echo "Erreur : Nombre d'arguments incorrect." [cite: 191]
+    echo "Erreur : Nombre d'arguments incorrect."
     afficher_aide
 fi
 
@@ -44,6 +45,7 @@ if [ ! -f "$DATA_FILE" ]; then
     exit 1
 fi
 
+# Validation des commandes
 case "$ACTION" in
     "histo")
         if [[ "$PARAM" != "max" && "$PARAM" != "src" && "$PARAM" != "real" ]]; then
@@ -54,7 +56,7 @@ case "$ACTION" in
         ;;
     "leaks")
         if [ -z "$PARAM" ]; then
-            echo "Erreur : Identifiant usine manquant pour leaks." [cite: 192]
+            echo "Erreur : Identifiant usine manquant pour leaks."
             fin_traitement
             exit 1
         fi
@@ -65,12 +67,14 @@ case "$ACTION" in
         ;;
 esac
 
+# Compilation
 if [ ! -f "$MAKEFILE" ]; then
     echo "Erreur critique : Makefile introuvable."
     fin_traitement
     exit 1
 fi
 
+# On force la recompilation si nécessaire via make
 make
 if [ $? -ne 0 ]; then
     echo "Erreur : La compilation a échoué."
@@ -84,47 +88,57 @@ if [ ! -x "$EXEC" ]; then
     exit 1
 fi
 
+# Création des dossiers de travail
 mkdir -p graphs tmp
 
 echo "Traitement en cours : $ACTION sur $DATA_FILE avec paramètre '$PARAM'..."
 
+# Traitement Histogramme
 if [ "$ACTION" == "histo" ]; then
+    # Configuration des variables selon le mode
     case "$PARAM" in
         "max")
             OUTPUT_CSV="vol_max.csv"
             TITRE_GRAPH="Capacité Maximale (HVA)"
             Y_LABEL="Capacité (M m3)"
-            DIVISEUR=1000000 # [cite: 146]
+            DIVISEUR=1000000 s
             ;;
         "src")
             OUTPUT_CSV="vol_src.csv"
             TITRE_GRAPH="Volume Capté (Sources)"
             Y_LABEL="Volume (M m3)"
-            DIVISEUR=1000000 # [cite: 149]
+            DIVISEUR=1000000 
             ;;
         "real")
             OUTPUT_CSV="vol_real.csv"
             TITRE_GRAPH="Volume Réellement Traité"
             Y_LABEL="Volume (M m3)"
-            DIVISEUR=1000000 # [cite: 154]
+            DIVISEUR=1000000 
             ;;
     esac
 
+    # Appel du programme C 
     "$EXEC" "$DATA_FILE" "$ACTION" "$PARAM" > "$OUTPUT_CSV"
     
     RET_CODE=$?
     if [ $RET_CODE -ne 0 ]; then
-        echo "Erreur lors de l'exécution du programme C (Code: $RET_CODE)." [cite: 198]
+        echo "Erreur lors de l'exécution du programme C (Code: $RET_CODE)."
         fin_traitement
         exit 1
     fi
 
+    # Génération des graphiques si des données existent
     if [ -s "$OUTPUT_CSV" ]; then
 
+        # Tri numérique sur la 2ème colonne 
+        # On ignore la 1ère ligne d'en-tête
         tail -n +2 "$OUTPUT_CSV" | sort -t";" -k2,2n > tmp/sorted.tmp
+        
+        # Extraction des extrêmes
         head -n 50 tmp/sorted.tmp > tmp/data_min.dat
         tail -n 10 tmp/sorted.tmp > tmp/data_max.dat
 
+        # Script Gnuplot intégré
         gnuplot -persist <<-GNU
             set terminal png size 1200,800 enhanced font "arial,10"
             set datafile separator ";"
@@ -136,13 +150,12 @@ if [ "$ACTION" == "histo" ]; then
             set grid ytics
             set ylabel "$Y_LABEL"
             
-            # Graphique 1 : Les 50 plus petites
+            # Graphique 1 : Les 50 plus petites valeurs
             set output "graphs/${PARAM}_min50.png"
             set title "$TITRE_GRAPH - 50 plus faibles"
-            # Colonne 2 divisée par le diviseur pour l'unité
             plot "tmp/data_min.dat" using (\$2/$DIVISEUR):xtic(1) title "Volume" linecolor rgb "#228B22"
 
-            # Graphique 2 : Les 10 plus grandes
+            # Graphique 2 : Les 10 plus grandes valeurs
             set output "graphs/${PARAM}_max10.png"
             set title "$TITRE_GRAPH - 10 plus forts"
             plot "tmp/data_max.dat" using (\$2/$DIVISEUR):xtic(1) title "Volume" linecolor rgb "#B22222"
@@ -152,9 +165,11 @@ GNU
         echo "Avertissement : Aucun résultat trouvé pour générer les graphiques."
     fi
 
+# Traitement Fuites
 elif [ "$ACTION" == "leaks" ]; then
-    LEAK_FILE="fuites.dat"
+    LEAK_FILE="fuites.dat"   
     
+    # Création de l'en-tête si le fichier est nouveau
     if [ ! -f "$LEAK_FILE" ]; then
         echo "Station;Fuite" > "$LEAK_FILE"
     fi
@@ -167,12 +182,16 @@ elif [ "$ACTION" == "leaks" ]; then
         fin_traitement
         exit 1
     fi
-
+    
+    # Filtrage 
     echo "$RES" | grep -v "Station;Fuite" >> "$LEAK_FILE"
+    
+    # Affichage utilisateur
     VALEUR=$(echo "$RES" | grep -v "Station;Fuite")
     echo "Résultat ajouté à '$LEAK_FILE' : $VALEUR"
 fi
 
+# Nettoyage des fichiers temporaires
 rm -f tmp/sorted.tmp tmp/data_min.dat tmp/data_max.dat
 
 fin_traitement
