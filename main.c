@@ -6,20 +6,23 @@
 #include "leak.h"
 
 int main(int argc, char** argv) {
+    // Vérification des arguments
     if (argc < 4) {
         fprintf(stderr, "Usage: %s <fichier_csv> <commande> <mode>\n", argv[0]);
         return 1;
     }
 
+    // Récupération des paramètres
     char* fichier_in = argv[1];
     char* commande = argv[2]; 
-    char* mode = argv[3]; 
-
+    char* mode = argv[3];     
     pStation arbre = NULL;
     FILE* f_out = stdout; 
 
+    // Histogrammes
     if (estEgal(commande, "histo")) {
         
+        // Écriture de l'en-tête CSV 
         if (estEgal(mode, "max")){
             fprintf(f_out, "Station;Capacite;Consommation\n");
         }
@@ -34,14 +37,13 @@ int main(int argc, char** argv) {
         liberer(arbre);
     }
     else if (estEgal(commande, "leaks")) {
-        
-        fprintf(f_out, "Station;Fuite\n");
+        fprintf(f_out, "Station;Fuite\n");        
+        // Appel du module qui construit le graphe et calcule les pertes
         traiter_fuites(fichier_in, mode, f_out); 
     }
     else {
         fprintf(stderr, "Commande inconnue : %s\n", commande);
         return 2;
     }
-
-    return 0;
+    return 0; 
 }
