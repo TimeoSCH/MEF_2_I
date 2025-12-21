@@ -28,6 +28,6 @@ file.o: file.c file.h avl.h
 leak.o: leak.c leak.h
 	$(CC) $(CFLAGS) -c leak.c
 
-# Nettoyage (Correction de la ligne coupée)
+# Nettoyage
 clean:
 	rm -f $(OBJ) $(EXEC)
