@@ -153,7 +153,12 @@ GNU
     fi
 
 elif [ "$ACTION" == "leaks" ]; then
-    LEAK_FILE="fuites.dat"   
+    LEAK_FILE="fuites.dat"
+    
+    if [ ! -f "$LEAK_FILE" ]; then
+        echo "Station;Fuite" > "$LEAK_FILE"
+    fi
+    
     RES=$("$EXEC" "$DATA_FILE" "$ACTION" "$PARAM")
     RET_CODE=$?
 
@@ -162,9 +167,10 @@ elif [ "$ACTION" == "leaks" ]; then
         fin_traitement
         exit 1
     fi
-    
-    echo "$RES" >> "$LEAK_FILE"
-    echo "Résultat ajouté à '$LEAK_FILE' : $RES"
+
+    echo "$RES" | grep -v "Station;Fuite" >> "$LEAK_FILE"
+    VALEUR=$(echo "$RES" | grep -v "Station;Fuite")
+    echo "Résultat ajouté à '$LEAK_FILE' : $VALEUR"
 fi
 
 rm -f tmp/sorted.tmp tmp/data_min.dat tmp/data_max.dat
