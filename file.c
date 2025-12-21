@@ -7,9 +7,7 @@
 #define MAX_LIGNE 2048
 
 int estEgal(const char* s1, const char* s2) {
-    if (!s1 || !s2){
-        return 0;
-    }
+    if (!s1 || !s2) return 0;
     return strcmp(s1, s2) == 0;
 }
 
@@ -21,56 +19,64 @@ void charger(char* chemin, pStation* racine, char* mode) {
     }
 
     char ligne[MAX_LIGNE];
-    
-    if (!fgets(ligne, MAX_LIGNE, fp)) {
-        fclose(fp);
-        return;
-    }
 
     while (fgets(ligne, MAX_LIGNE, fp)) {
-        char *p = ligne;
-        while (*p) {
-            if (*p == '\r' || *p == '\n') {
-                *p = '\0';
-                break; 
-            }
-            p++; 
+        ligne[strcspn(ligne, "\r\n")] = 0;
+        if (strlen(ligne) == 0){
+            continue;
         }
-
-        char *cols[12]; 
-        int col_count = 0;
+        char *cols[6] = {NULL}; 
         char *ptr = ligne;
+        int i = 0;
 
-        while (ptr != NULL && col_count < 12) {
-            char *next = strchr(ptr, ';');
-            if (next) *next = '\0';
-            cols[col_count++] = ptr;
-            ptr = next ? (next + 1) : NULL;
-        }
-
-      if (estEgal(mode, "real")) {
-          if (col_count > 5 && !estEgal(cols[3], "-") && strlen(cols[3]) > 0) {
-        
-        long load = atol(cols[5]); 
-        
-         if (load > 0) {
-            *racine = inserer(*racine, cols[3], 0, load);
-        }
-    }
-}
-        else if (estEgal(mode, "max") || estEgal(mode, "hva") || estEgal(mode, "hvb")) {
-            char* id_str = "-";
-            if (col_count > 2 && !estEgal(cols[2], "-")) {
-                id_str = cols[2];
-            } else if (col_count > 1 && !estEgal(cols[1], "-")) {
-                id_str = cols[1];
+        while (ptr != NULL && i < 6) {
+            cols[i] = ptr;
+            char *sep = strchr(ptr, ';');
+            if (sep != NULL) {
+                *sep = '\0';
+                ptr = sep + 1;
+            } else {
+                ptr = NULL;
             }
+            i++;
+        }
+        
+        if (i < 5){
+            continue;
+        }
 
-            if (!estEgal(id_str, "-")) {
-                long cap = atol(cols[4]);
-    
+        char* id_amont = cols[1]; 
+        char* id_aval = cols[2];  
+        char* val_vol = cols[3];  
+        char* val_fuite = cols[4];
+
+        if (estEgal(mode, "max")) {
+            if (estEgal(id_aval, "-") && !estEgal(id_amont, "-")) {
+                long cap = atol(val_vol);
                 if (cap > 0) {
-                    *racine = inserer(*racine, id_str, cap, 0);
+                    *racine = inserer(*racine, id_amont, cap, 0);
+                }
+            }
+        }
+        
+        else if (estEgal(mode, "src") || estEgal(mode, "real")) {
+            if (!estEgal(id_aval, "-") && !estEgal(id_amont, "-")) {
+
+                char* id_usine = id_aval; 
+                long volume = atol(val_vol);
+
+                if (volume > 0) {
+                    if (estEgal(mode, "src")) {
+                        *racine = inserer(*racine, id_usine, 0, volume);
+                    } 
+                    else if (estEgal(mode, "real")) {
+                        double fuite_pct = 0.0;
+                        if (!estEgal(val_fuite, "-")) {
+                            fuite_pct = atof(val_fuite);
+                        }
+                        long vol_reel = (long)(volume * (1.0 - (fuite_pct / 100.0)));
+                        *racine = inserer(*racine, id_usine, 0, vol_reel);
+                    }
                 }
             }
         }
