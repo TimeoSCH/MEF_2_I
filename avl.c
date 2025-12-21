@@ -4,8 +4,6 @@ int max(int a, int b) { return (a > b) ? a : b; }
 int hauteur(pStation a) { return (a == NULL) ? 0 : a->h; }
 int equilibre(pStation a) { return (a == NULL) ? 0 : hauteur(a->fg) - hauteur(a->fd); }
 
-// ... (Gardez vos fonctions de rotation telles quelles, elles sont correctes) ...
-// Je remets juste rotationDroite pour l'exemple, garde les autres !
 pStation rotationDroite(pStation y) {
     pStation x = y->fg;
     pStation T2 = x->fd;
@@ -51,7 +49,7 @@ pStation inserer(pStation a, char* code, long cap, long flux) {
         return creerStation(code, cap, flux);
     }
 
-    // Utilisation de STRCMP pour le tri alphabétique/numérique textuel
+    // Utilisation de STRCMP pour le tri alphabétique
     int cmp = strcmp(code, a->id_str);
 
     if (cmp < 0) {
@@ -59,13 +57,11 @@ pStation inserer(pStation a, char* code, long cap, long flux) {
     } else if (cmp > 0) {
         a->fd = inserer(a->fd, code, cap, flux);
     } else {
-        // ID déjà présent : on cumule la capacité et la consommation
         a->capacite += cap; // Important pour les modes HVA
         a->conso += flux;
         return a;
     }
 
-    // Mise à jour hauteur et équilibrage (inchangé)
     a->h = 1 + max(hauteur(a->fg), hauteur(a->fd));
     int bal = equilibre(a);
 
@@ -80,8 +76,6 @@ pStation inserer(pStation a, char* code, long cap, long flux) {
 void infixe(pStation a, FILE* fs) {
     if (a != NULL) {
         infixe(a->fg, fs);
-        // Format demandé par le sujet : ID:CAP:CONSO
-        // Attention au format : %s pour string, %ld pour long
         fprintf(fs, "%s;%ld;%ld\n", a->id_str, a->capacite, a->conso);
         infixe(a->fd, fs);
     }
